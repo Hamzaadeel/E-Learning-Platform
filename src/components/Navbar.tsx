@@ -2,7 +2,9 @@ import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Search } from "lucide-react";
-import { Course, courses } from "../data/courses";
+import { Course } from "../types";
+import { collection, getDocs } from "firebase/firestore";
+import { db } from "../config/firebase";
 
 interface NavbarProps {
   searchQuery: string;
@@ -14,7 +16,25 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
   const { currentUser } = useAuth();
   const [searchResults, setSearchResults] = useState<Course[]>([]);
   const [showResults, setShowResults] = useState(false);
+  const [courses, setCourses] = useState<Course[]>([]);
   const searchRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "courses"));
+        const coursesData = querySnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Course[];
+        setCourses(coursesData);
+      } catch (error) {
+        console.error("Error fetching courses:", error);
+      }
+    };
+
+    fetchCourses();
+  }, []);
 
   useEffect(() => {
     if (searchQuery.trim()) {
@@ -32,7 +52,7 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
       setSearchResults([]);
       setShowResults(false);
     }
-  }, [searchQuery]);
+  }, [searchQuery, courses]);
 
   // Close search results when clicking outside
   useEffect(() => {

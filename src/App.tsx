@@ -1,19 +1,22 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-
-// Import your dashboard components
-import { AdminDashboard } from "./pages/AdminDashboard";
-import { InstructorDashboard } from "./pages/InstructorDashboard";
-import { StudentDashboard } from "./pages/StudentDashboard";
-import DefaultDashboard from "./pages/DefaultDashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import { Courses } from "./admin/Courses";
+import DefaultDashboard from "./pages/DefaultDashboard";
+import { AdminDashboard } from "./pages/AdminDashboard";
+import { StudentDashboard } from "./pages/StudentDashboard";
+import { InstructorDashboard } from "./pages/InstructorDashboard";
 import Users from "./admin/Users";
+import { Courses } from "./admin/Courses";
 import { Instructors } from "./admin/Instructors";
 import { Analytics } from "./admin/Analytics";
 import { Settings } from "./admin/Settings";
+import { MyCourses } from "./learner/MyCourses";
+import { Assignments } from "./learner/Assignments";
+import { Progress } from "./learner/Progress";
+import { Settings as LearnerSettings } from "./learner/Settings";
+import { LearnerCourseView } from "./learner/LearnerCourseView";
 
 function App() {
   return (
@@ -35,18 +38,36 @@ function App() {
             }
           />
           <Route
-            path="/admin/courses"
+            path="/learner-dashboard"
             element={
-              <ProtectedRoute allowedRoles={["admin"]}>
-                <Courses />
+              <ProtectedRoute allowedRoles={["learner"]}>
+                <StudentDashboard />
               </ProtectedRoute>
             }
           />
+          <Route
+            path="/instructor-dashboard"
+            element={
+              <ProtectedRoute allowedRoles={["instructor"]}>
+                <InstructorDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Admin routes */}
           <Route
             path="/admin/users"
             element={
               <ProtectedRoute allowedRoles={["admin"]}>
                 <Users />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/courses"
+            element={
+              <ProtectedRoute allowedRoles={["admin"]}>
+                <Courses />
               </ProtectedRoute>
             }
           />
@@ -74,19 +95,45 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Learner routes */}
           <Route
-            path="/learner-dashboard"
+            path="/learner/courses"
             element={
               <ProtectedRoute allowedRoles={["learner"]}>
-                <StudentDashboard />
+                <MyCourses />
               </ProtectedRoute>
             }
           />
           <Route
-            path="/instructor-dashboard"
+            path="/learner/assignments"
             element={
-              <ProtectedRoute allowedRoles={["instructor"]}>
-                <InstructorDashboard />
+              <ProtectedRoute allowedRoles={["learner"]}>
+                <Assignments />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learner/progress"
+            element={
+              <ProtectedRoute allowedRoles={["learner"]}>
+                <Progress />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learner/settings"
+            element={
+              <ProtectedRoute allowedRoles={["learner"]}>
+                <LearnerSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/learner/course/:courseId"
+            element={
+              <ProtectedRoute allowedRoles={["learner"]}>
+                <LearnerCourseView />
               </ProtectedRoute>
             }
           />

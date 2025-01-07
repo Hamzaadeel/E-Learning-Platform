@@ -54,7 +54,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await setDoc(doc(db, "users", userCredential.user.uid), {
         email,
         role,
+        name: email.split("@")[0], // Set a default name
         createdAt: new Date().toISOString(),
+        enrolledCourses: [], // Initialize empty enrolledCourses array
+        enrolledDates: {}, // Initialize empty enrolledDates object
+        courseProgress: {}, // Initialize empty courseProgress object
       });
     } catch (error) {
       console.error("Error in signup:", error);

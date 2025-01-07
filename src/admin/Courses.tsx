@@ -1,11 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import {
-  Plus,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Image as ImageIcon,
-} from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { collection, addDoc, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Course } from "../data/courses";
@@ -14,44 +8,11 @@ import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
 import { Loader } from "../components/Loader";
 import debounce from "lodash/debounce";
+import { CourseDefinition } from "./CourseDefinition";
 
 type SortField = "title" | "level" | "price" | "category";
 type SortDirection = "asc" | "desc";
 const COURSES_PER_PAGE = 9;
-
-// Image component with loading placeholder
-const LazyImage = ({ src, alt }: { src: string; alt: string }) => {
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(false);
-
-  return (
-    <div className="relative w-full h-48 bg-gray-100">
-      {isLoading && !error && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Loader />
-        </div>
-      )}
-      {error && (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-          <ImageIcon className="h-12 w-12 text-gray-400" />
-        </div>
-      )}
-      <img
-        src={src}
-        alt={alt}
-        className={`w-full h-48 object-cover transition-opacity duration-300 ${
-          isLoading || error ? "opacity-0" : "opacity-100"
-        }`}
-        loading="lazy"
-        onLoad={() => setIsLoading(false)}
-        onError={() => {
-          setIsLoading(false);
-          setError(true);
-        }}
-      />
-    </div>
-  );
-};
 
 export function Courses() {
   const { currentUser: authUser } = useAuth();
@@ -65,6 +26,8 @@ export function Courses() {
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [currentPage, setCurrentPage] = useState(1);
   const [user, setUser] = useState<User | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const [newCourse, setNewCourse] = useState<Partial<Course>>({
     title: "",
@@ -142,30 +105,6 @@ export function Courses() {
     [debouncedSearch]
   );
 
-  // Memoize CourseCard component
-  const CourseCard = useCallback(
-    ({ course }: { course: Course }) => (
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <LazyImage src={course.imageUrl} alt={course.title} />
-        <div className="p-4">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {course.title}
-          </h3>
-          <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-            {course.description}
-          </p>
-          <div className="flex justify-between items-center">
-            <span className="text-indigo-600 font-medium">${course.price}</span>
-            <span className="text-sm text-gray-500">
-              by {course.instructor}
-            </span>
-          </div>
-        </div>
-      </div>
-    ),
-    []
-  );
-
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
@@ -237,6 +176,11 @@ export function Courses() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleEditCourse = (courseId: string) => {
+    setSelectedCourseId(courseId);
+    setIsEditModalOpen(true);
   };
 
   const coursesList = (
@@ -316,7 +260,43 @@ export function Courses() {
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {paginatedCourses.map((course) => (
-              <CourseCard key={course.id} course={course} />
+              <div
+                key={course.id}
+                className="bg-white rounded-lg shadow-sm overflow-hidden"
+              >
+                <img
+                  src={course.imageUrl}
+                  alt={course.title}
+                  className="w-full h-48 object-cover"
+                />
+                <div className="p-4">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {course.title}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    {course.description}
+                  </p>
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      {course.category}
+                    </span>
+                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                      {course.level}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-lg font-bold text-gray-900">
+                      ${course.price}
+                    </span>
+                    <button
+                      onClick={() => handleEditCourse(course.id)}
+                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                    >
+                      Edit Course
+                    </button>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
@@ -523,6 +503,17 @@ export function Courses() {
       }
     >
       {coursesList}
+
+      {selectedCourseId && (
+        <CourseDefinition
+          courseId={selectedCourseId}
+          isOpen={isEditModalOpen}
+          onClose={() => {
+            setIsEditModalOpen(false);
+            setSelectedCourseId(null);
+          }}
+        />
+      )}
     </DashboardLayout>
   );
 }

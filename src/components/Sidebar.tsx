@@ -47,7 +47,6 @@ export function Sidebar({ user }: SidebarProps) {
       { icon: FileText, label: "Assignments", path: "/learner/assignments" },
       { icon: BarChart, label: "Progress", path: "/learner/progress" },
       { icon: Settings, label: "Settings", path: "/learner/settings" },
-      { icon: HelpCircle, label: "Help", path: "/learner/help" },
     ],
     instructor: [
       { icon: Home, label: "Dashboard", path: "/instructor-dashboard" },
@@ -66,7 +65,9 @@ export function Sidebar({ user }: SidebarProps) {
     <div className="w-64 bg-white h-screen shadow-lg">
       <div className="flex items-center justify-center h-16 border-b">
         <GraduationCap className="h-8 w-8 text-indigo-600" />
-        <span className="ml-2 text-xl font-bold text-gray-800">LearnHub</span>
+        <span className="ml-2 text-xl font-bold text-gray-800">
+          E-Learning Platform
+        </span>
       </div>
 
       <div className="p-4">

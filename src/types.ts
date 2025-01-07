@@ -6,7 +6,7 @@ export interface Course {
   imageUrl: string;
   price: number;
   duration: string;
-  level: 'Beginner' | 'Intermediate' | 'Advanced';
+  level: string;
   category: string;
 }
 
@@ -14,7 +14,7 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'instructor' | 'admin';
+  role: "admin" | "learner" | "instructor";
   avatar?: string;
 }
 
