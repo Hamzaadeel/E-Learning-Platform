@@ -26,4 +26,6 @@ password: learner123
 1. Added CRUD to instructor's table.
 2. Admin can add and edit a course.
 3. Added price, duration, instructor dropdown, course outline, section wise outline, add content field in add and edit course modal.
+4. Added Name field in users table. Added sorting.
+
    
