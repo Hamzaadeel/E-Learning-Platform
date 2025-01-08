@@ -9,6 +9,9 @@ export interface Course {
   durationType: string;
   level: string;
   category: string;
+  outlineDescription?: string;
+  outlineItems?: { title: string; topics: string[] }[];
+  content?: { title: string; videoUrl: string; description: string }[];
 }
 
 export interface User {

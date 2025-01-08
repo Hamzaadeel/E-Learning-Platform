@@ -13,6 +13,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
+import { useState } from "react";
 
 interface SidebarProps {
   user: User;
@@ -58,6 +59,8 @@ export function Sidebar({ user }: SidebarProps) {
     ],
     admin: adminNavigation,
   };
+
+  const [isMinimized, setIsMinimized] = useState(false);
 
   const items = menuItems[user.role] || menuItems.student;
 

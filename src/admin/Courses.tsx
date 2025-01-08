@@ -10,6 +10,7 @@ import { Loader } from "../components/Loader";
 import debounce from "lodash/debounce";
 import { CourseDefinition } from "./CourseDefinition";
 import { AddCourse } from "./AddCourse";
+import { CourseDetails } from "./CourseDetails";
 
 type SortField = "title" | "level" | "price" | "category";
 type SortDirection = "asc" | "desc";
@@ -29,6 +30,7 @@ export function Courses() {
   const [user, setUser] = useState<User | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -148,6 +150,10 @@ export function Courses() {
     setIsEditModalOpen(true);
   };
 
+  const handleCardClick = (course: Course) => {
+    setSelectedCourse(course);
+  };
+
   const coursesList = (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
@@ -202,8 +208,6 @@ export function Courses() {
           >
             <option value="title-asc">Title (A-Z)</option>
             <option value="title-desc">Title (Z-A)</option>
-            <option value="level-asc">Level (Low to High)</option>
-            <option value="level-desc">Level (High to Low)</option>
             <option value="price-asc">Price (Low to High)</option>
             <option value="price-desc">Price (High to Low)</option>
             <option value="category-asc">Category (A-Z)</option>
@@ -227,7 +231,8 @@ export function Courses() {
             {paginatedCourses.map((course) => (
               <div
                 key={course.id}
-                className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-[420px]"
+                onClick={() => handleCardClick(course)}
+                className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-[420px] cursor-pointer hover:shadow-md hover:scale-105 transition-all"
               >
                 <img
                   src={course.imageUrl}
@@ -255,11 +260,14 @@ export function Courses() {
                         {course.price === 0 ? "Free" : `$${course.price}`}
                       </span>
                       <span className="text-sm text-gray-500">
-                        {course.duration}
+                        {course.durationValue} {course.durationType}
                       </span>
                     </div>
                     <button
-                      onClick={() => handleEditCourse(course.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEditCourse(course.id);
+                      }}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
                     >
                       Edit Course
@@ -321,6 +329,15 @@ export function Courses() {
           fetchCourses();
         }}
       />
+
+      {/* Add CourseDetails modal */}
+      {selectedCourse && (
+        <CourseDetails
+          course={selectedCourse}
+          isOpen={!!selectedCourse}
+          onClose={() => setSelectedCourse(null)}
+        />
+      )}
     </div>
   );
 

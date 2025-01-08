@@ -15,6 +15,7 @@ import { Loader } from "../components/Loader";
 import { Course } from "../types";
 import { Search, Trash2, SortAsc } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { CourseDetails } from "./CourseDetailsLearner";
 
 interface EnrolledCourse extends Course {
   enrolledAt: string;
@@ -36,6 +37,7 @@ export function MyCourses() {
   const [selectedLevel, setSelectedLevel] = useState<string>("");
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
 
   useEffect(() => {
     if (authUser) {
@@ -238,6 +240,10 @@ export function MyCourses() {
     setCourseToDelete(courseId);
   };
 
+  const handleCardClick = (course: Course) => {
+    setSelectedCourse(course);
+  };
+
   if (!authUser) {
     return <Loader />;
   }
@@ -304,7 +310,8 @@ export function MyCourses() {
                 .map((course) => (
                   <div
                     key={course.id}
-                    className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-[480px]"
+                    onClick={() => handleCardClick(course)}
+                    className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-[480px] cursor-pointer hover:shadow-md hover:scale-105 transition-all"
                   >
                     <img
                       src={course.imageUrl}
@@ -366,7 +373,10 @@ export function MyCourses() {
                                 : "Continue"}
                             </button>
                             <button
-                              onClick={() => confirmDropCourse(course.id)}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                confirmDropCourse(course.id);
+                              }}
                               disabled={dropping === course.id}
                               className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                               title="Drop Course"
@@ -471,7 +481,8 @@ export function MyCourses() {
             {notEnrolledCourses.map((course) => (
               <div
                 key={course.id}
-                className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-[420px]"
+                onClick={() => handleCardClick(course)}
+                className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-[420px] cursor-pointer hover:shadow-md hover:scale-105 transition-all"
               >
                 <img
                   src={course.imageUrl}
@@ -507,7 +518,10 @@ export function MyCourses() {
                       </span>
                     </div>
                     <button
-                      onClick={() => handleEnroll(course.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEnroll(course.id);
+                      }}
                       disabled={enrolling === course.id}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
                     >
@@ -520,6 +534,14 @@ export function MyCourses() {
           </div>
         </div>
       </div>
+
+      {selectedCourse && (
+        <CourseDetails
+          course={selectedCourse}
+          isOpen={!!selectedCourse}
+          onClose={() => setSelectedCourse(null)}
+        />
+      )}
     </DashboardLayout>
   );
 }
