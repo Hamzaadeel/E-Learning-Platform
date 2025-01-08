@@ -32,6 +32,7 @@ export function Sidebar({ user }: SidebarProps) {
   };
 
   const adminNavigation = [
+    { icon: Home, label: "Dashboard", path: "/admin-dashboard" },
     { icon: Users, label: "Users", path: "/admin/users" },
     { icon: BookOpen, label: "Courses", path: "/admin/courses" },
     { icon: GraduationCap, label: "Instructors", path: "/admin/instructors" },

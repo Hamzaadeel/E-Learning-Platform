@@ -9,6 +9,7 @@ import { Loader } from "../components/Loader";
 
 interface FirestoreUser {
   email: string;
+  name: string;
   role: string;
   createdAt: string;
   uid: string;
@@ -91,9 +92,9 @@ export default function Users() {
 
   const filteredUsers = users
     .filter((user) => {
-      const matchesSearch = user.email
-        .toLowerCase()
-        .includes(searchQuery.toLowerCase());
+      const matchesSearch =
+        (user.name?.toLowerCase() || "").includes(searchQuery.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesRole = selectedRole === "all" || user.role === selectedRole;
       return matchesSearch && matchesRole;
     })
@@ -113,7 +114,7 @@ export default function Users() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
-              placeholder="Search by email..."
+              placeholder="Search by name or email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -145,6 +146,9 @@ export default function Users() {
                     ID
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Name
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -173,6 +177,11 @@ export default function Users() {
                   <tr key={user.uid} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {index + 1}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-900">
+                        {user.name || "N/A"}
+                      </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm text-gray-900">{user.email}</div>
