@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Plus, Trash2, X } from "lucide-react";
+import { Course } from "../data/courses";
 
 interface CourseContent {
   title: string;
@@ -20,6 +21,14 @@ interface CourseDefinitionProps {
   onClose: () => void;
 }
 
+interface CourseFormData extends Omit<Course, "id" | "rating" | "students"> {
+  durationType: string;
+  durationValue: number;
+  outlineDescription: string;
+  outlineItems: OutlineItem[];
+  content: CourseContent[];
+}
+
 export function CourseDefinition({
   courseId,
   isOpen,
@@ -28,17 +37,23 @@ export function CourseDefinition({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [formData, setFormData] = useState({
+  const [instructors, setInstructors] = useState<
+    { id: string; name: string }[]
+  >([]);
+  const [formData, setFormData] = useState<CourseFormData>({
     title: "",
     description: "",
     category: "",
-    level: "",
-    price: "",
+    level: "Beginner",
+    price: 0,
     duration: "",
+    durationType: "",
+    durationValue: 0,
     imageUrl: "",
+    instructor: "",
     outlineDescription: "",
-    outlineItems: [] as OutlineItem[],
-    content: [] as CourseContent[],
+    outlineItems: [],
+    content: [],
   });
 
   useEffect(() => {
@@ -46,6 +61,25 @@ export function CourseDefinition({
       fetchCourseData();
     }
   }, [courseId]);
+
+  useEffect(() => {
+    const fetchInstructors = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        const instructorsList = querySnapshot.docs
+          .filter((doc) => doc.data().role === "instructor")
+          .map((doc) => ({
+            id: doc.id,
+            name: doc.data().name,
+          }));
+        setInstructors(instructorsList);
+      } catch (error) {
+        console.error("Error fetching instructors:", error);
+      }
+    };
+
+    fetchInstructors();
+  }, []);
 
   const fetchCourseData = async () => {
     try {
@@ -56,10 +90,13 @@ export function CourseDefinition({
           title: courseData.title || "",
           description: courseData.description || "",
           category: courseData.category || "",
-          level: courseData.level || "",
-          price: courseData.price || "",
+          level: (courseData.level as Course["level"]) || "Beginner",
+          price: courseData.price || 0,
           duration: courseData.duration || "",
+          durationType: courseData.durationType || "",
+          durationValue: courseData.durationValue || 0,
           imageUrl: courseData.imageUrl || "",
+          instructor: courseData.instructor || "",
           outlineDescription: courseData.outlineDescription || "",
           outlineItems: courseData.outlineItems || [],
           content: courseData.content || [],
@@ -212,6 +249,30 @@ export function CourseDefinition({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Price ($)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        price: parseFloat(e.target.value) || 0,
+                      })
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    placeholder="0 for free course"
+                  />
+                  {formData.price === 0 && (
+                    <span className="text-sm text-gray-500 mt-1">
+                      This course will be free
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     Image URL
                   </label>
                   <input
@@ -246,31 +307,78 @@ export function CourseDefinition({
                   <select
                     value={formData.level}
                     onChange={(e) =>
-                      setFormData({ ...formData, level: e.target.value })
+                      setFormData({
+                        ...formData,
+                        level: e.target.value as Course["level"],
+                      })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                     required
                   >
-                    <option value="">Select Level</option>
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
                     <option value="Advanced">Advanced</option>
                   </select>
                 </div>
-                <div>
+                <div className="space-y-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Duration
                   </label>
-                  <input
-                    type="text"
-                    value={formData.duration}
+                  <div className="flex gap-2">
+                    <input
+                      type="number"
+                      min="1"
+                      value={formData.durationValue}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          durationValue: parseInt(e.target.value) || 0,
+                        })
+                      }
+                      className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      placeholder="Enter duration"
+                      required
+                    />
+                    <select
+                      value={formData.durationType}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          durationType: e.target.value,
+                        })
+                      }
+                      className="w-1/2 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      required
+                    >
+                      <option value="">Select Unit</option>
+                      <option value="days">Days</option>
+                      <option value="weeks">Weeks</option>
+                      <option value="months">Months</option>
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Instructor
+                  </label>
+                  <select
+                    value={formData.instructor}
                     onChange={(e) =>
-                      setFormData({ ...formData, duration: e.target.value })
+                      setFormData({
+                        ...formData,
+                        instructor: e.target.value,
+                      })
                     }
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="e.g., 8 weeks"
                     required
-                  />
+                  >
+                    <option value="">Select Instructor</option>
+                    {instructors.map((instructor) => (
+                      <option key={instructor.id} value={instructor.name}>
+                        {instructor.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 

@@ -5,7 +5,8 @@ export interface Course {
   instructor: string;
   imageUrl: string;
   price: number;
-  duration: string;
+  durationValue: number;
+  durationType: string;
   level: string;
   category: string;
 }

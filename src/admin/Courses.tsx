@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { collection, addDoc, getDocs, doc, getDoc } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Course } from "../data/courses";
 import { DashboardLayout } from "../components/DashboardLayout";
@@ -9,6 +9,7 @@ import { User } from "../types";
 import { Loader } from "../components/Loader";
 import debounce from "lodash/debounce";
 import { CourseDefinition } from "./CourseDefinition";
+import { AddCourse } from "./AddCourse";
 
 type SortField = "title" | "level" | "price" | "category";
 type SortDirection = "asc" | "desc";
@@ -18,7 +19,7 @@ export function Courses() {
   const { currentUser: authUser } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLevel, setSelectedLevel] = useState<string>("all");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -28,17 +29,6 @@ export function Courses() {
   const [user, setUser] = useState<User | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-
-  const [newCourse, setNewCourse] = useState<Partial<Course>>({
-    title: "",
-    description: "",
-    instructor: "",
-    price: 0,
-    duration: "",
-    level: "Beginner",
-    category: "web-dev",
-    imageUrl: "",
-  });
 
   // Debounced search handler
   const debouncedSearch = useCallback(
@@ -153,31 +143,6 @@ export function Courses() {
     }
   }, [authUser]);
 
-  const handleAddCourse = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setLoading(true);
-      const coursesRef = collection(db, "courses");
-      await addDoc(coursesRef, newCourse);
-      setShowModal(false);
-      setNewCourse({
-        title: "",
-        description: "",
-        instructor: "",
-        price: 0,
-        duration: "",
-        level: "Beginner",
-        category: "web-dev",
-        imageUrl: "",
-      });
-      await fetchCourses();
-    } catch (error) {
-      console.error("Error adding course:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleEditCourse = (courseId: string) => {
     setSelectedCourseId(courseId);
     setIsEditModalOpen(true);
@@ -245,7 +210,7 @@ export function Courses() {
             <option value="category-desc">Category (Z-A)</option>
           </select>
           <button
-            onClick={() => setShowModal(true)}
+            onClick={() => setShowAddModal(true)}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
           >
             <Plus className="h-5 w-5 mr-2" />
@@ -262,18 +227,18 @@ export function Courses() {
             {paginatedCourses.map((course) => (
               <div
                 key={course.id}
-                className="bg-white rounded-lg shadow-sm overflow-hidden"
+                className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col h-[420px]"
               >
                 <img
                   src={course.imageUrl}
                   alt={course.title}
                   className="w-full h-48 object-cover"
                 />
-                <div className="p-4">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                <div className="p-4 flex flex-col flex-grow">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">
                     {course.title}
                   </h3>
-                  <p className="text-sm text-gray-600 mb-4">
+                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                     {course.description}
                   </p>
                   <div className="flex flex-wrap gap-2 mb-4">
@@ -284,10 +249,15 @@ export function Courses() {
                       {course.level}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-900">
-                      ${course.price}
-                    </span>
+                  <div className="mt-auto flex justify-between items-center">
+                    <div className="flex flex-col">
+                      <span className="text-lg font-bold text-gray-900">
+                        {course.price === 0 ? "Free" : `$${course.price}`}
+                      </span>
+                      <span className="text-sm text-gray-500">
+                        {course.duration}
+                      </span>
+                    </div>
                     <button
                       onClick={() => handleEditCourse(course.id)}
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
@@ -344,141 +314,13 @@ export function Courses() {
       )}
 
       {/* Add Course Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <h2 className="text-xl font-bold mb-4">Add New Course</h2>
-            <form onSubmit={handleAddCourse}>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Title
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newCourse.title}
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, title: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <textarea
-                    required
-                    value={newCourse.description}
-                    onChange={(e) =>
-                      setNewCourse({
-                        ...newCourse,
-                        description: e.target.value,
-                      })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Instructor
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newCourse.instructor}
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, instructor: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Price
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    value={newCourse.price}
-                    onChange={(e) =>
-                      setNewCourse({
-                        ...newCourse,
-                        price: parseFloat(e.target.value),
-                      })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Duration
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={newCourse.duration}
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, duration: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Level
-                  </label>
-                  <select
-                    required
-                    value={newCourse.level}
-                    onChange={(e) =>
-                      setNewCourse({
-                        ...newCourse,
-                        level: e.target.value as Course["level"],
-                      })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  >
-                    <option value="Beginner">Beginner</option>
-                    <option value="Intermediate">Intermediate</option>
-                    <option value="Advanced">Advanced</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Image URL
-                  </label>
-                  <input
-                    type="url"
-                    required
-                    value={newCourse.imageUrl}
-                    onChange={(e) =>
-                      setNewCourse({ ...newCourse, imageUrl: e.target.value })
-                    }
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                  />
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="px-4 py-2 text-gray-700 hover:text-gray-900"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
-                >
-                  Add Course
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <AddCourse
+        isOpen={showAddModal}
+        onClose={() => {
+          setShowAddModal(false);
+          fetchCourses();
+        }}
+      />
     </div>
   );
 
@@ -511,6 +353,7 @@ export function Courses() {
           onClose={() => {
             setIsEditModalOpen(false);
             setSelectedCourseId(null);
+            fetchCourses();
           }}
         />
       )}

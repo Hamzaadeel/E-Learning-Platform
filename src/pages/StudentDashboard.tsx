@@ -1,57 +1,139 @@
+import { useState, useEffect } from "react";
 import { BarChart, BookOpen, Clock } from "lucide-react";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
-import { User, EnrolledCourse } from "../types";
+import { User } from "../types";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "../config/firebase";
+import { useNavigate } from "react-router-dom";
+import { Loader } from "../components/Loader";
 
-// Keep the enrolledCourses mock data for now
-const enrolledCourses: EnrolledCourse[] = [
-  {
-    id: "1",
-    title: "Complete Web Development Bootcamp",
-    description: "Learn full-stack web development from scratch",
-    instructor: "Sarah Johnson",
-    imageUrl: "https://images.unsplash.com/photo-1498050108023-c5249f4df085",
-    price: 99.99,
-    duration: "12 weeks",
-    level: "Beginner",
-    category: "web-dev",
-    progress: 45,
-    lastAccessed: "2024-01-15",
-  },
-  {
-    id: "2",
-    title: "Data Science Fundamentals",
-    description: "Introduction to data analysis and visualization",
-    instructor: "Emily Rodriguez",
-    imageUrl: "https://images.unsplash.com/photo-1551288049-bebda4e38f71",
-    price: 89.99,
-    duration: "10 weeks",
-    level: "Intermediate",
-    category: "data-science",
-    progress: 20,
-    lastAccessed: "2024-01-14",
-  },
-];
+interface CourseContent {
+  title: string;
+  videoUrl: string;
+  description: string;
+  duration: number; // video duration in minutes
+}
+
+interface EnrolledCourseWithContent {
+  id: string;
+  title: string;
+  description: string;
+  instructor: string;
+  imageUrl: string;
+  price: number;
+  durationValue: number;
+  durationType: string;
+  level: string;
+  category: string;
+  progress: number;
+  lastAccessed: string;
+  content: CourseContent[];
+  completedLectures: { [key: string]: boolean };
+}
 
 export function StudentDashboard() {
+  const navigate = useNavigate();
   const { currentUser: authUser } = useAuth();
+  const [loading, setLoading] = useState(true);
+  const [enrolledCourses, setEnrolledCourses] = useState<
+    EnrolledCourseWithContent[]
+  >([]);
+  const [user, setUser] = useState<User | null>(null);
 
-  if (!authUser) {
-    return null; // or redirect to login
+  useEffect(() => {
+    if (authUser) {
+      fetchUserAndCourses();
+    }
+  }, [authUser]);
+
+  const fetchUserAndCourses = async () => {
+    if (!authUser?.uid) return;
+    try {
+      // Fetch user data
+      const userRef = doc(db, "users", authUser.uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        setUser({
+          id: authUser.uid,
+          name: userData.name || authUser.displayName || "User",
+          email: userData.email || authUser.email || "",
+          role: "learner",
+          avatar:
+            userData.avatar ||
+            authUser.photoURL ||
+            `https://ui-avatars.com/api/?name=${userData.name || "User"}`,
+        });
+
+        // Fetch enrolled courses with content
+        if (
+          userData.enrolledCourses &&
+          Array.isArray(userData.enrolledCourses)
+        ) {
+          const coursesPromises = userData.enrolledCourses.map(
+            async (courseId: string) => {
+              const courseDoc = await getDoc(doc(db, "courses", courseId));
+              if (courseDoc.exists()) {
+                const courseData = courseDoc.data();
+                const completedLectures =
+                  userData.completedLectures?.[courseId] || {};
+                const totalLectures = courseData.content?.length || 0;
+                const completedCount =
+                  Object.values(completedLectures).filter(Boolean).length;
+                const progress =
+                  totalLectures > 0
+                    ? Math.round((completedCount / totalLectures) * 100)
+                    : 0;
+
+                return {
+                  id: courseId,
+                  ...courseData,
+                  progress,
+                  completedLectures,
+                  lastAccessed:
+                    userData.lastAccessed?.[courseId] ||
+                    new Date().toISOString(),
+                } as EnrolledCourseWithContent;
+              }
+              return null;
+            }
+          );
+
+          const courses = (await Promise.all(coursesPromises)).filter(
+            Boolean
+          ) as EnrolledCourseWithContent[];
+          setEnrolledCourses(courses);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!authUser || loading) {
+    return <Loader />;
   }
 
-  const user: User = {
-    id: authUser.uid,
-    name: authUser.displayName || "Student",
-    email: authUser.email || "",
-    role: "student",
-    avatar: authUser.photoURL || "https://ui-avatars.com/api/?name=Student",
-  };
+  // Calculate statistics
+  const totalCourses = enrolledCourses.length;
+  const averageProgress =
+    totalCourses > 0
+      ? Math.round(
+          enrolledCourses.reduce((acc, course) => acc + course.progress, 0) /
+            totalCourses
+        )
+      : 0;
+  const completedLectures = enrolledCourses.reduce((acc, course) => {
+    return acc + Object.values(course.completedLectures).filter(Boolean).length;
+  }, 0);
 
   const dashboardContent = (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">
-        Welcome back, {user.name}!
+        Welcome back, {user?.name}!
       </h1>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -62,7 +144,7 @@ export function StudentDashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-500">Enrolled Courses</p>
-              <p className="text-xl font-semibold">{enrolledCourses.length}</p>
+              <p className="text-xl font-semibold">{totalCourses}</p>
             </div>
           </div>
         </div>
@@ -74,7 +156,7 @@ export function StudentDashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-500">Average Progress</p>
-              <p className="text-xl font-semibold">32%</p>
+              <p className="text-xl font-semibold">{averageProgress}%</p>
             </div>
           </div>
         </div>
@@ -85,8 +167,8 @@ export function StudentDashboard() {
               <Clock className="h-6 w-6 text-yellow-600" />
             </div>
             <div className="ml-4">
-              <p className="text-sm text-gray-500">Hours Learned</p>
-              <p className="text-xl font-semibold">24.5</p>
+              <p className="text-sm text-gray-500">Lectures Completed</p>
+              <p className="text-xl font-semibold">{completedLectures}</p>
             </div>
           </div>
         </div>
@@ -122,7 +204,10 @@ export function StudentDashboard() {
                   <span className="text-sm text-gray-500">
                     {course.progress}% complete
                   </span>
-                  <button className="text-indigo-600 hover:text-indigo-700 text-sm font-medium">
+                  <button
+                    onClick={() => navigate(`/learner/course/${course.id}`)}
+                    className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+                  >
                     Continue
                   </button>
                 </div>
@@ -134,5 +219,23 @@ export function StudentDashboard() {
     </div>
   );
 
-  return <DashboardLayout user={user}>{dashboardContent}</DashboardLayout>;
+  return (
+    <DashboardLayout
+      user={
+        user || {
+          id: authUser.uid,
+          name: authUser.displayName || "User",
+          email: authUser.email || "",
+          role: "learner",
+          avatar:
+            authUser.photoURL ||
+            `https://ui-avatars.com/api/?name=${
+              authUser.displayName || "User"
+            }`,
+        }
+      }
+    >
+      {dashboardContent}
+    </DashboardLayout>
+  );
 }

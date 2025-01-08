@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { doc, getDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
 import { Loader } from "../components/Loader";
-import { ChevronLeft, ChevronRight, Menu, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu, X, Check } from "lucide-react";
+import ReactConfetti from "react-confetti";
 
 interface CourseContent {
   title: string;
@@ -24,13 +25,18 @@ interface Course {
   title: string;
   description: string;
   category: string;
-  duration: string;
+  durationValue: number;
+  durationType: string;
   level: string;
   price: string;
   imageUrl: string;
   outlineDescription: string;
   outlineItems: OutlineItem[];
   content: CourseContent[];
+}
+
+interface CompletedLectures {
+  [key: string]: boolean;
 }
 
 export function LearnerCourseView() {
@@ -41,12 +47,37 @@ export function LearnerCourseView() {
   const [loading, setLoading] = useState(true);
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [completedLectures, setCompletedLectures] = useState<CompletedLectures>(
+    {}
+  );
+  const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
     if (authUser) {
       fetchUserAndCourseData();
     }
   }, [authUser, courseId]);
+
+  // Stop confetti after 5 seconds
+  useEffect(() => {
+    if (showConfetti) {
+      const timer = setTimeout(() => {
+        setShowConfetti(false);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showConfetti]);
+
+  // Add video completion tracking
+  useEffect(() => {
+    const videoElement = document.querySelector("iframe");
+    if (videoElement) {
+      // Mark lecture as complete when video ends
+      videoElement.addEventListener("ended", () => {
+        handleLectureCompletion(currentVideoIndex, true);
+      });
+    }
+  }, [currentVideoIndex]);
 
   const fetchUserAndCourseData = async () => {
     if (!authUser?.uid || !courseId) return;
@@ -65,6 +96,14 @@ export function LearnerCourseView() {
             authUser.photoURL ||
             `https://ui-avatars.com/api/?name=${userData.name || "User"}`,
         });
+
+        // Set completed lectures
+        if (
+          userData.completedLectures &&
+          userData.completedLectures[courseId]
+        ) {
+          setCompletedLectures(userData.completedLectures[courseId]);
+        }
       }
 
       // Fetch course data
@@ -79,6 +118,40 @@ export function LearnerCourseView() {
       console.error("Error fetching data:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLectureCompletion = async (
+    lectureIndex: number,
+    isComplete: boolean
+  ) => {
+    if (!authUser?.uid || !courseId) return;
+    try {
+      const newCompletedLectures = {
+        ...completedLectures,
+        [lectureIndex]: isComplete,
+      };
+      setCompletedLectures(newCompletedLectures);
+
+      // Calculate progress based on completed videos
+      const totalVideos = course?.content?.length || 0;
+      const completedVideos =
+        Object.values(newCompletedLectures).filter(Boolean).length;
+      const progress =
+        totalVideos > 0 ? Math.round((completedVideos / totalVideos) * 100) : 0;
+
+      const userRef = doc(db, "users", authUser.uid);
+      await updateDoc(userRef, {
+        [`completedLectures.${courseId}`]: newCompletedLectures,
+        [`courseProgress.${courseId}`]: progress,
+      });
+
+      // Check if all lectures are completed
+      if (completedVideos === totalVideos) {
+        setShowConfetti(true);
+      }
+    } catch (error) {
+      console.error("Error updating lecture completion:", error);
     }
   };
 
@@ -122,6 +195,22 @@ export function LearnerCourseView() {
         }
       }
     >
+      {showConfetti && (
+        <>
+          <ReactConfetti
+            width={window.innerWidth}
+            height={window.innerHeight}
+            recycle={false}
+            numberOfPieces={500}
+            gravity={0.3}
+          />
+          <div className="fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 bg-white p-12 rounded-lg shadow-lg z-50">
+            <h2 className="text-2xl font-bold text-center text-indigo-600">
+              🎉 Congratulations! You have completed this course! 🎉
+            </h2>
+          </div>
+        </>
+      )}
       <div className="p-6 flex">
         {/* Main Content */}
         <div
@@ -140,7 +229,9 @@ export function LearnerCourseView() {
                 </h1>
                 <div className="mt-2 flex flex-wrap gap-4 text-sm text-gray-500">
                   <span>Category: {course.category}</span>
-                  <span>Duration: {course.duration}</span>
+                  <span>
+                    Duration: {course.durationValue} {course.durationType}
+                  </span>
                   <span>Level: {course.level}</span>
                   <span>Price: ${course.price}</span>
                 </div>
@@ -287,33 +378,62 @@ export function LearnerCourseView() {
                     Week {weekIndex + 1}
                   </h3>
                   {course?.content
-                    .slice(weekIndex * 5, (weekIndex + 1) * 5)
+                    ?.slice(weekIndex * 5, (weekIndex + 1) * 5)
                     .map((content, lectureIndex) => {
                       const absoluteIndex = weekIndex * 5 + lectureIndex;
                       return (
-                        <button
+                        <div
                           key={absoluteIndex}
-                          onClick={() => setCurrentVideoIndex(absoluteIndex)}
-                          className={`w-full text-left p-4 rounded-lg transition-colors ${
+                          className={`flex items-center gap-2 p-4 rounded-lg transition-colors ${
                             currentVideoIndex === absoluteIndex
-                              ? "bg-indigo-50 text-indigo-700"
+                              ? "bg-indigo-50"
                               : "hover:bg-gray-50"
                           }`}
                         >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-sm font-medium">
-                                Lecture {absoluteIndex + 1}:
-                              </span>{" "}
-                              {content.title}
-                            </div>
-                            {currentVideoIndex === absoluteIndex && (
-                              <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-                                Current
-                              </span>
+                          <div
+                            className={`flex-shrink-0 w-5 h-5 border rounded cursor-pointer flex items-center justify-center
+                              ${
+                                completedLectures[absoluteIndex]
+                                  ? "bg-green-500 border-green-500 text-white"
+                                  : "border-gray-300 hover:border-gray-400"
+                              }`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleLectureCompletion(
+                                absoluteIndex,
+                                !completedLectures[absoluteIndex]
+                              );
+                            }}
+                          >
+                            {completedLectures[absoluteIndex] && (
+                              <Check className="h-3 w-3" />
                             )}
                           </div>
-                        </button>
+                          <button
+                            onClick={() => setCurrentVideoIndex(absoluteIndex)}
+                            className="flex-1 text-left"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div
+                                className={`${
+                                  completedLectures[absoluteIndex]
+                                    ? "text-gray-500"
+                                    : ""
+                                }`}
+                              >
+                                <span className="text-sm font-medium">
+                                  Lecture {absoluteIndex + 1}:
+                                </span>{" "}
+                                {content.title}
+                              </div>
+                              {currentVideoIndex === absoluteIndex && (
+                                <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full ml-2">
+                                  Current
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        </div>
                       );
                     })}
                 </div>
