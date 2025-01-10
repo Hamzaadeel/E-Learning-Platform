@@ -1,19 +1,87 @@
+import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { Course } from "../types";
+import { useAuth } from "../contexts/AuthContext";
+import { db } from "../config/firebase";
+import { doc, updateDoc, arrayUnion } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
+import SuccessModal from "./SuccessModal";
 
 interface CourseDetailsProps {
   course: Course;
   isOpen: boolean;
   onClose: () => void;
+  isEnrolled: boolean;
+  onEnroll: () => void;
 }
 
-export function CourseDetails({ course, isOpen, onClose }: CourseDetailsProps) {
+export function CourseDetails({
+  course,
+  isOpen,
+  onClose,
+  isEnrolled,
+  onEnroll,
+}: CourseDetailsProps) {
+  const modalRef = useRef<HTMLDivElement | null>(null);
+  const { currentUser } = useAuth();
+  const [enrolling, setEnrolling] = useState(false);
+  const navigate = useNavigate();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"enroll" | null>(null);
+
+  const handleClickOutside = useCallback(
+    (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (modalRef.current && !modalRef.current.contains(target)) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, handleClickOutside]);
+
+  const handleEnroll = async () => {
+    if (!currentUser?.uid) return;
+
+    setEnrolling(true);
+    try {
+      const userRef = doc(db, "users", currentUser.uid);
+      await updateDoc(userRef, {
+        enrolledCourses: arrayUnion(course.id),
+        [`enrolledDates.${course.id}`]: new Date().toISOString(),
+        [`courseProgress.${course.id}`]: 0,
+      });
+      setSuccessMessage(`You have successfully enrolled in "${course.title}"!`);
+      setMessageType("enroll");
+      setShowSuccessModal(true);
+      onEnroll();
+      onClose();
+    } catch (error) {
+      console.error("Error enrolling in course:", error);
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg w-full max-w-4xl h-[90vh] flex flex-col"
+      >
+        <div className="p-4 flex justify-between items-center border-b">
           <h2 className="text-2xl font-bold text-gray-900">{course.title}</h2>
           <button
             onClick={onClose}
@@ -23,7 +91,7 @@ export function CourseDetails({ course, isOpen, onClose }: CourseDetailsProps) {
           </button>
         </div>
 
-        <div className="space-y-6">
+        <div className="flex-1 overflow-y-auto p-4">
           {/* Course Image */}
           <img
             src={course.imageUrl}
@@ -116,7 +184,52 @@ export function CourseDetails({ course, isOpen, onClose }: CourseDetailsProps) {
             </div>
           )}
         </div>
+
+        {/* Enroll Button in Footer */}
+        <div className="p-4 border-t">
+          <button
+            onClick={handleEnroll}
+            disabled={isEnrolled || enrolling}
+            className={`bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition ${
+              isEnrolled || enrolling ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            {enrolling
+              ? "Enrolling..."
+              : isEnrolled
+              ? "Enrolled"
+              : "Enroll Now"}
+          </button>
+          {isEnrolled && (
+            <button
+              onClick={() => navigate(`/learner/course/${course.id}`)}
+              className="bg-blue-500 text-white p-2 rounded-lg hover:bg-blue-600 transition float-right"
+            >
+              Continue
+            </button>
+          )}
+        </div>
       </div>
+
+      <SuccessModal
+        isOpen={showSuccessModal}
+        onClose={() => {
+          setShowSuccessModal(false);
+          setSuccessMessage(null);
+        }}
+      >
+        <h2 className="text-lg font-semibold text-center">{successMessage}</h2>
+      </SuccessModal>
+
+      {successMessage && (
+        <div
+          className={`alert ${
+            messageType === "enroll" ? "alert-success" : "alert-danger"
+          }`}
+        >
+          {successMessage}
+        </div>
+      )}
     </div>
   );
 }

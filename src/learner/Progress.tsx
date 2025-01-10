@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { DashboardLayout } from "../components/DashboardLayout";
@@ -30,13 +30,7 @@ export function Progress() {
     "all" | "completed" | "in-progress"
   >("all");
 
-  useEffect(() => {
-    if (authUser) {
-      fetchUserDataAndProgress();
-    }
-  }, [authUser]);
-
-  const fetchUserDataAndProgress = async () => {
+  const fetchUserDataAndProgress = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       // Fetch user data
@@ -97,7 +91,13 @@ export function Progress() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authUser]);
+
+  useEffect(() => {
+    if (authUser) {
+      fetchUserDataAndProgress();
+    }
+  }, [authUser, fetchUserDataAndProgress]);
 
   // Sort and filter courses
   const filteredAndSortedCourses = coursesProgress

@@ -117,7 +117,7 @@ export function Courses() {
     }
   };
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       const userDoc = await getDoc(doc(db, "users", authUser.uid));
@@ -137,13 +137,13 @@ export function Courses() {
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  };
+  }, [authUser]);
 
   useEffect(() => {
     if (authUser) {
-      Promise.all([fetchUserData(), fetchCourses()]);
+      fetchUserData();
     }
-  }, [authUser]);
+  }, [authUser, fetchUserData]);
 
   const handleEditCourse = (courseId: string) => {
     setSelectedCourseId(courseId);
@@ -156,24 +156,24 @@ export function Courses() {
 
   const coursesList = (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Courses</h1>
-        <div className="flex items-center space-x-4">
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Courses</h1>
+      <div className="flex flex-col md:flex-row md:justify-between mb-6">
+        <div className="flex flex-col md:flex-row md:items-center space-y-4 md:space-y-0 md:space-x-4">
           {/* Search Bar */}
-          <div className="relative">
+          <div className="relative w-full md:w-1/3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
             <input
               type="text"
               placeholder="Search courses..."
               onChange={handleSearchChange}
-              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
           {/* Level Filter */}
           <select
             value={selectedLevel}
             onChange={(e) => setSelectedLevel(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto"
           >
             <option value="all">All Levels</option>
             <option value="Beginner">Beginner</option>
@@ -184,7 +184,7 @@ export function Courses() {
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 w-full md:w-auto"
           >
             <option value="all">All Categories</option>
             <option value="web-dev">Web Development</option>
@@ -193,34 +193,15 @@ export function Courses() {
             <option value="design">Design</option>
             <option value="business">Business</option>
           </select>
-          {/* Sort Options */}
-          <select
-            value={`${sortField}-${sortDirection}`}
-            onChange={(e) => {
-              const [field, direction] = e.target.value.split("-") as [
-                SortField,
-                SortDirection
-              ];
-              setSortField(field);
-              setSortDirection(direction);
-            }}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-          >
-            <option value="title-asc">Title (A-Z)</option>
-            <option value="title-desc">Title (Z-A)</option>
-            <option value="price-asc">Price (Low to High)</option>
-            <option value="price-desc">Price (High to Low)</option>
-            <option value="category-asc">Category (A-Z)</option>
-            <option value="category-desc">Category (Z-A)</option>
-          </select>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
-          >
-            <Plus className="h-5 w-5 mr-2" />
-            Add Course
-          </button>
         </div>
+        {/* Add Course Button */}
+        <button
+          onClick={() => setShowAddModal(true)}
+          className="mt-4 md:mt-0 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
+        >
+          <Plus className="h-5 w-5 mr-2" />
+          Add Course
+        </button>
       </div>
 
       {loading ? (

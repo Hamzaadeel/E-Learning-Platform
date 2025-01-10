@@ -19,6 +19,7 @@ type UserRole = "admin" | "learner" | "instructor";
 
 interface AuthUser extends User {
   role?: UserRole;
+  name?: string;
 }
 
 interface AuthContextType {
@@ -78,11 +79,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // Get user role from Firestore
           const userDoc = await getDoc(doc(db, "users", user.uid));
           const userData = userDoc.data();
-          const authUser: AuthUser = user;
-          authUser.role = userData?.role;
+          const authUser: AuthUser = {
+            ...user,
+            role: userData?.role,
+            name:
+              userData?.name ||
+              (user.email ? user.email.split("@")[0] : "User"), // Check if user.email is defined
+          };
           setCurrentUser(authUser);
         } catch (error) {
           console.error("Error fetching user data:", error);

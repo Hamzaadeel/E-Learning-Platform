@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "../config/firebase";
@@ -32,13 +32,7 @@ export function Settings() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  useEffect(() => {
-    if (authUser) {
-      fetchUserData();
-    }
-  }, [authUser]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       const userRef = doc(db, "users", authUser.uid);
@@ -70,7 +64,11 @@ export function Settings() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [authUser]);
+
+  useEffect(() => {
+    fetchUserData();
+  }, [fetchUserData]);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];

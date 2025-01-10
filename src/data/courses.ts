@@ -1,4 +1,8 @@
+import { ReactNode } from "react";
+
 export interface Course {
+  durationType: ReactNode;
+  durationValue: ReactNode;
   id: string;
   title: string;
   description: string;
@@ -43,6 +47,8 @@ export const courses: Course[] = [
     duration: "12 weeks",
     level: "Beginner",
     category: "web-dev",
+    durationType: "weeks",
+    durationValue: 12,
   },
   {
     id: "2",
@@ -57,6 +63,8 @@ export const courses: Course[] = [
     duration: "8 weeks",
     level: "Advanced",
     category: "web-dev",
+    durationType: "weeks",
+    durationValue: 8,
   },
   {
     id: "3",
@@ -71,6 +79,8 @@ export const courses: Course[] = [
     duration: "10 weeks",
     level: "Intermediate",
     category: "data-science",
+    durationType: "weeks",
+    durationValue: 10,
   },
   {
     id: "4",
@@ -85,6 +95,8 @@ export const courses: Course[] = [
     duration: "10 weeks",
     level: "Advanced",
     category: "devops",
+    durationType: "weeks",
+    durationValue: 10,
   },
   {
     id: "5",
@@ -99,6 +111,8 @@ export const courses: Course[] = [
     duration: "10 weeks",
     level: "Intermediate",
     category: "design",
+    durationType: "weeks",
+    durationValue: 10,
   },
   {
     id: "6",
@@ -112,6 +126,8 @@ export const courses: Course[] = [
     duration: "12 weeks",
     level: "Intermediate",
     category: "business",
+    durationType: "weeks",
+    durationValue: 12,
   },
   {
     id: "7",
@@ -125,6 +141,8 @@ export const courses: Course[] = [
     duration: "10 weeks",
     level: "Intermediate",
     category: "mobile",
+    durationType: "weeks",
+    durationValue: 10,
   },
   {
     id: "8",
@@ -138,6 +156,8 @@ export const courses: Course[] = [
     duration: "14 weeks",
     level: "Advanced",
     category: "ai",
+    durationType: "weeks",
+    durationValue: 14,
   },
   {
     id: "9",
@@ -152,6 +172,8 @@ export const courses: Course[] = [
     duration: "4 weeks",
     level: "Beginner",
     category: "marketing",
+    durationType: "weeks",
+    durationValue: 4,
   },
   {
     id: "10",
@@ -166,5 +188,7 @@ export const courses: Course[] = [
     duration: "8 weeks",
     level: "Intermediate",
     category: "data-science",
+    durationType: "weeks",
+    durationValue: 8,
   },
 ];

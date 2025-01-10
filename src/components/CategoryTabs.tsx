@@ -14,7 +14,10 @@ export function CategoryTabs({
 }: CategoryTabsProps) {
   return (
     <div className="border-b border-gray-200">
-      <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+      <nav
+        className="flex flex-wrap -mb-px space-x-4 md:space-x-8"
+        aria-label="Tabs"
+      >
         {categories.map((category) => (
           <button
             key={category.id}
@@ -23,7 +26,7 @@ export function CategoryTabs({
               selectedCategory === category.id
                 ? "border-indigo-500 text-indigo-600"
                 : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700",
-              "whitespace-nowrap border-b-2 py-4 px-1 text-sm font-medium"
+              "whitespace-nowrap border-b-2 py-4 px-2 text-sm font-medium md:px-4"
             )}
           >
             {category.name}

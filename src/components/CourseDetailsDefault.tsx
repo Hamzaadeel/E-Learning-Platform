@@ -1,5 +1,7 @@
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { Course } from "../types";
+import { useNavigate } from "react-router-dom";
 
 interface CourseDetailsProps {
   course: Course;
@@ -8,11 +10,38 @@ interface CourseDetailsProps {
 }
 
 export function CourseDetails({ course, isOpen, onClose }: CourseDetailsProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (modalRef.current && !modalRef.current.contains(target)) {
+        onClose();
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, onClose]);
+
+  const handleSignUp = () => {
+    navigate("/register");
+  };
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{course.title}</h2>
           <button
@@ -101,6 +130,16 @@ export function CourseDetails({ course, isOpen, onClose }: CourseDetailsProps) {
             ... <br />
             To view course content, please sign up.
           </p>
+        </div>
+
+        {/* Fixed Footer */}
+        <div className="bg-white border-t p-4 flex justify-end">
+          <button
+            onClick={handleSignUp}
+            className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
+          >
+            Sign Up
+          </button>
         </div>
       </div>
     </div>

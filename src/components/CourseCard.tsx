@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Course } from "../types";
 import { CourseDetails } from "./CourseDetailsDefault";
+import AuthModal from "./AuthModal";
 
 interface CourseCardProps {
   course: Course;
@@ -9,27 +10,41 @@ interface CourseCardProps {
 
 export function CourseCard({ course, onClick }: CourseCardProps) {
   const [showDetails, setShowDetails] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const handleClick = () => {
+  const handleCardClick = () => {
     if (onClick) {
       onClick(course);
-    } else {
-      setShowDetails(true);
     }
+    setShowDetails(true);
+  };
+
+  const handleEnrollClick = () => {
+    setIsModalOpen(true);
+  };
+
+  const handleSignUp = () => {
+    console.log("Redirecting to sign-up...");
+    setIsModalOpen(false);
+  };
+
+  const handleLogin = () => {
+    console.log("Redirecting to login...");
+    setIsModalOpen(false);
   };
 
   return (
     <>
       <div
-        className="bg-white rounded-lg shadow-md overflow-hidden h-[500px] flex flex-col cursor-pointer hover:shadow-lg hover:scale-105 transition-all"
-        onClick={handleClick}
+        className="bg-white rounded-lg shadow-md overflow-hidden h-full flex flex-col cursor-pointer hover:shadow-lg hover:scale-105 transition-all"
+        onClick={handleCardClick}
       >
         <img
           src={course.imageUrl}
           alt={course.title}
           className="w-full h-48 object-cover"
         />
-        <div className="p-6 flex flex-col flex-1">
+        <div className="p-4 flex flex-col flex-1">
           <div className="flex justify-between items-start">
             <h3 className="text-lg font-semibold text-gray-900 line-clamp-2">
               {course.title}
@@ -56,7 +71,7 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                // Keep the original enroll functionality
+                handleEnrollClick();
               }}
               className="bg-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-indigo-700 transition-colors"
             >
@@ -73,6 +88,13 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
           onClose={() => setShowDetails(false)}
         />
       )}
+
+      <AuthModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSignUp={handleSignUp}
+        onLogin={handleLogin}
+      />
     </>
   );
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   collection,
   getDocs,
@@ -213,7 +213,7 @@ export function Instructors() {
     }
   };
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       const userDoc = await getDoc(doc(db, "users", authUser.uid));
@@ -233,13 +233,13 @@ export function Instructors() {
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  };
+  }, [authUser]);
 
   useEffect(() => {
     if (authUser) {
       Promise.all([fetchUserData(), fetchInstructors()]);
     }
-  }, [authUser]);
+  }, [authUser, fetchUserData]);
 
   const handleAddInstructor = async (
     data: Omit<Instructor, "id" | "createdAt">
@@ -337,8 +337,8 @@ export function Instructors() {
       }
     >
       <div className="p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Instructors</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Instructors</h1>
+        <div className="flex flex-col md:flex-row md:justify-between mb-6">
           <button
             onClick={() => setShowAddModal(true)}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"

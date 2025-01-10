@@ -17,6 +17,7 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
   const [searchResults, setSearchResults] = useState<Course[]>([]);
   const [showResults, setShowResults] = useState(false);
   const [courses, setCourses] = useState<Course[]>([]);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -78,6 +79,10 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
     navigate(`/course/${courseId}`);
   };
 
+  const toggleMobileMenu = () => {
+    setIsMobileMenuOpen((prev) => !prev);
+  };
+
   return (
     <nav className="bg-gray-100 shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -95,7 +100,7 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
                   e.currentTarget.src = "https://placehold.co/32x32";
                 }}
               />
-              <h1 className="text-xl font-bold text-indigo-600 hover:text-indigo-500 transition-colors">
+              <h1 className="hidden md:block text-xl font-bold text-indigo-600 hover:text-indigo-500 transition-colors">
                 E-Learning Platform
               </h1>
             </div>
@@ -110,7 +115,7 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
                 <input
                   type="text"
                   placeholder="Search courses..."
-                  className="w-72 pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
+                  className="w-48 sm:w-72 pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-all"
                   value={searchQuery}
                   onChange={(e) => onSearchChange(e.target.value)}
                   onFocus={() => setShowResults(true)}
@@ -150,8 +155,57 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
               )}
             </div>
 
+            <div className="hidden md:flex items-center space-x-3">
+              {!currentUser && (
+                <>
+                  <button
+                    onClick={() => navigate("/login")}
+                    className="px-4 py-2 rounded-md text-indigo-600 hover:text-indigo-500 font-medium transition-colors"
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    onClick={() => navigate("/register")}
+                    className="px-4 py-2 rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors font-medium"
+                  >
+                    Sign Up
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Mobile Menu Button */}
+            <div className="md:hidden flex items-center">
+              <button
+                onClick={toggleMobileMenu}
+                className="text-gray-600 hover:text-gray-800 focus:outline-none"
+              >
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 6h16M4 12h16m-7 6h7"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden bg-white shadow-md">
+          <div className="flex flex-col p-4">
             {!currentUser && (
-              <div className="flex items-center space-x-3">
+              <>
                 <button
                   onClick={() => navigate("/login")}
                   className="px-4 py-2 rounded-md text-indigo-600 hover:text-indigo-500 font-medium transition-colors"
@@ -164,11 +218,11 @@ export function Navbar({ searchQuery, onSearchChange }: NavbarProps) {
                 >
                   Sign Up
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>
-      </div>
+      )}
     </nav>
   );
 }

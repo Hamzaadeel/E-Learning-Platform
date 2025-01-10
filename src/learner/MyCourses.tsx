@@ -1,26 +1,39 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { db } from "../config/firebase";
 import {
+  arrayUnion,
   collection,
-  getDocs,
   doc,
   getDoc,
+  getDocs,
   updateDoc,
-  arrayUnion,
 } from "firebase/firestore";
-import { db } from "../config/firebase";
+import { Course } from "../types";
 import { DashboardLayout } from "../components/DashboardLayout";
-import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
 import { Loader } from "../components/Loader";
-import { Course } from "../types";
 import { Search, Trash2, SortAsc } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { CourseDetails } from "./CourseDetailsLearner";
+import { useAuth } from "../contexts/AuthContext";
+import SuccessModal from "./SuccessModal";
 
 interface EnrolledCourse extends Course {
   enrolledAt: string;
   progress: number;
 }
+
+// Define a function to get custom messages
+const getCustomMessage = (action: "enroll" | "drop", course: Course) => {
+  switch (action) {
+    case "enroll":
+      return `🎉 Congratulations! You have successfully enrolled in "${course.title}" 🎉`;
+    case "drop":
+      return `You have successfully dropped the course "${course.title}". 😔`;
+    default:
+      return "";
+  }
+};
 
 export function MyCourses() {
   const navigate = useNavigate();
@@ -38,15 +51,14 @@ export function MyCourses() {
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<"enroll" | "drop" | null>(
+    null
+  );
+  const [droppingMessage, setDroppingMessage] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (authUser) {
-      fetchUserData();
-      fetchCourses();
-    }
-  }, [authUser]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       setEnrolledCoursesLoading(true);
@@ -54,15 +66,20 @@ export function MyCourses() {
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
         const userData = userDoc.data();
+        const userName = authUser.displayName || "User";
+
+        console.log("Fetched user data:", userData);
+        console.log("Auth user display name:", userName);
+
         setUser({
           id: authUser.uid,
-          name: userData.name || authUser.displayName || "User",
-          email: userData.email || authUser.email || "",
+          name: userName,
+          email: authUser.email || "",
           role: "learner",
           avatar:
             userData.avatar ||
             authUser.photoURL ||
-            `https://ui-avatars.com/api/?name=${userData.name || "User"}`,
+            `https://ui-avatars.com/api/?name=${userName}`,
         });
 
         // Initialize arrays if they don't exist
@@ -132,6 +149,14 @@ export function MyCourses() {
           const validCourses = enrolledCoursesData.filter(
             Boolean
           ) as EnrolledCourse[];
+
+          // Sort courses by enrollment date (most recent first)
+          validCourses.sort((a, b) => {
+            const dateA = new Date(validEnrolledDates[a.id]);
+            const dateB = new Date(validEnrolledDates[b.id]);
+            return dateB.getTime() - dateA.getTime(); // Sort in descending order
+          });
+
           console.log("Final enrolled courses:", validCourses);
           setEnrolledCourses(validCourses);
         } else {
@@ -143,7 +168,19 @@ export function MyCourses() {
     } finally {
       setEnrolledCoursesLoading(false);
     }
-  };
+  }, [authUser]);
+
+  useEffect(() => {
+    if (authUser) {
+      fetchUserData();
+      fetchCourses();
+    }
+  }, [authUser, fetchUserData]);
+
+  // Log the user state to verify it contains the correct name
+  useEffect(() => {
+    console.log("User state in MyCourses:", user);
+  }, [user]);
 
   const fetchCourses = async () => {
     try {
@@ -152,6 +189,7 @@ export function MyCourses() {
         id: doc.id,
         ...doc.data(),
       })) as Course[];
+
       setAvailableCourses(coursesData);
     } catch (error) {
       console.error("Error fetching courses:", error);
@@ -173,6 +211,17 @@ export function MyCourses() {
         [`enrolledDates.${courseId}`]: new Date().toISOString(),
         [`courseProgress.${courseId}`]: 0,
       });
+
+      // Set success message
+      const enrolledCourse = availableCourses.find(
+        (course) => course.id === courseId
+      );
+      if (enrolledCourse) {
+        const message = getCustomMessage("enroll", enrolledCourse);
+        setSuccessMessage(message);
+        setMessageType("enroll");
+        handleSuccess(message);
+      }
 
       // Refresh user data to show newly enrolled course
       await fetchUserData();
@@ -209,6 +258,18 @@ export function MyCourses() {
           courseProgress: updatedCourseProgress,
         });
 
+        // Set success message for dropping course
+        const droppedCourse = availableCourses.find(
+          (course) => course.id === courseId
+        );
+        if (droppedCourse) {
+          const message = getCustomMessage("drop", droppedCourse);
+          setDroppingMessage(message);
+          setSuccessMessage(message);
+          setMessageType("drop");
+          handleSuccess(message);
+        }
+
         // Refresh user data to show updated enrolled courses
         await fetchUserData();
       }
@@ -244,6 +305,28 @@ export function MyCourses() {
     setSelectedCourse(course);
   };
 
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+        setMessageType(null);
+      }, 10000);
+
+      return () => clearTimeout(timer);
+    }
+  }, [successMessage]);
+
+  const handleSuccess = (message: string) => {
+    setSuccessMessage(message);
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSuccessMessage(null);
+    setDroppingMessage(null);
+  };
+
   if (!authUser) {
     return <Loader />;
   }
@@ -253,6 +336,17 @@ export function MyCourses() {
     ...new Set(availableCourses.map((course) => course.category)),
   ];
   const levels = [...new Set(availableCourses.map((course) => course.level))];
+
+  if (loading) {
+    return (
+      <div>
+        <Loader />
+      </div>
+    );
+  }
+
+  console.log("Current User in MyCourses:", authUser);
+  console.log("User state in MyCourses:", user);
 
   return (
     <DashboardLayout
@@ -270,7 +364,7 @@ export function MyCourses() {
         }
       }
     >
-      <div className="p-6">
+      <div className="p-6 relative">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">My Courses</h1>
 
         {/* Enrolled Courses */}
@@ -301,7 +395,7 @@ export function MyCourses() {
               You haven't enrolled in any courses yet.
             </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {[...enrolledCourses]
                 .sort((a, b) => {
                   const order = sortOrder === "asc" ? 1 : -1;
@@ -317,6 +411,7 @@ export function MyCourses() {
                       src={course.imageUrl}
                       alt={course.title}
                       className="w-full h-48 object-cover"
+                      loading="lazy"
                     />
                     <div className="p-4 flex flex-col flex-grow">
                       <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">
@@ -477,7 +572,7 @@ export function MyCourses() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {notEnrolledCourses.map((course) => (
               <div
                 key={course.id}
@@ -488,6 +583,7 @@ export function MyCourses() {
                   src={course.imageUrl}
                   alt={course.title}
                   className="w-full h-48 object-cover"
+                  loading="lazy"
                 />
                 <div className="p-4 flex flex-col flex-grow">
                   <h3 className="text-lg font-semibold text-gray-900 mb-2 line-clamp-1">
@@ -522,10 +618,20 @@ export function MyCourses() {
                         e.stopPropagation();
                         handleEnroll(course.id);
                       }}
-                      disabled={enrolling === course.id}
+                      disabled={
+                        enrolledCourses.some(
+                          (enrolled) => enrolled.id === course.id
+                        ) || enrolling === course.id
+                      }
                       className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
                     >
-                      {enrolling === course.id ? "Enrolling..." : "Enroll Now"}
+                      {enrolledCourses.some(
+                        (enrolled) => enrolled.id === course.id
+                      )
+                        ? "Enrolled"
+                        : enrolling === course.id
+                        ? "Enrolling..."
+                        : "Enroll Now"}
                     </button>
                   </div>
                 </div>
@@ -540,7 +646,35 @@ export function MyCourses() {
           course={selectedCourse}
           isOpen={!!selectedCourse}
           onClose={() => setSelectedCourse(null)}
+          isEnrolled={enrolledCourses.some(
+            (enrolled) => enrolled.id === selectedCourse.id
+          )}
+          onEnroll={() => {
+            setSuccessMessage(
+              `Successfully enrolled in "${selectedCourse.title}"`
+            );
+            setMessageType("enroll");
+            fetchUserData();
+          }}
         />
+      )}
+
+      {/* Modal for Success and Dropping Messages */}
+      <SuccessModal isOpen={isModalOpen} onClose={closeModal}>
+        <h2 className="text-lg font-semibold text-center">
+          {successMessage || droppingMessage}
+        </h2>
+      </SuccessModal>
+
+      {/* Success Message */}
+      {successMessage && (
+        <div
+          className={`alert ${
+            messageType === "enroll" ? "alert-success" : "alert-danger"
+          }`}
+        >
+          {successMessage}
+        </div>
       )}
     </DashboardLayout>
   );

@@ -6,8 +6,10 @@ import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
 import { Loader } from "../components/Loader";
-import { ChevronLeft, ChevronRight, Menu, X, Check } from "lucide-react";
+import { ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import ReactConfetti from "react-confetti";
+import CourseContentSidebar from "./CourseContentSidebar";
+import { CourseDetails } from "./CourseDetailsLearner";
 
 interface CourseContent {
   title: string;
@@ -51,6 +53,8 @@ export function LearnerCourseView() {
     {}
   );
   const [showConfetti, setShowConfetti] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isUserEnrolled, setIsUserEnrolled] = useState(false);
 
   useEffect(() => {
     if (authUser) {
@@ -175,6 +179,14 @@ export function LearnerCourseView() {
     return match && match[2].length === 11 ? match[2] : null;
   };
 
+  const handleCloseSidebar = () => {
+    setIsSidebarOpen(false);
+  };
+
+  const handleClose = () => {
+    setIsOpen(false);
+  };
+
   if (!authUser) {
     return <Loader />;
   }
@@ -212,6 +224,16 @@ export function LearnerCourseView() {
         </>
       )}
       <div className="p-6 flex">
+        {/* Sidebar Opening Button */}
+        {!isSidebarOpen && (
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            className="fixed right-6 top-24 z-50 p-2 bg-white rounded-full shadow-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <Menu className="h-6 w-6 text-gray-600" />
+          </button>
+        )}
+
         {/* Main Content */}
         <div
           className={`flex-1 space-y-6 transition-all duration-300 ${
@@ -233,7 +255,9 @@ export function LearnerCourseView() {
                     Duration: {course.durationValue} {course.durationType}
                   </span>
                   <span>Level: {course.level}</span>
-                  <span>Price: ${course.price}</span>
+                  <span>
+                    Price: {course.price === "0" ? "Free" : `$${course.price}`}
+                  </span>
                 </div>
               </div>
 
@@ -347,101 +371,28 @@ export function LearnerCourseView() {
           )}
         </div>
 
-        {/* Toggle Sidebar Button */}
-        <button
-          onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-          className="fixed right-6 top-24 z-50 p-2 bg-white rounded-full shadow-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-        >
-          {isSidebarOpen ? (
-            <X className="h-6 w-6 text-gray-600" />
-          ) : (
-            <Menu className="h-6 w-6 text-gray-600" />
-          )}
-        </button>
-
         {/* Sidebar */}
-        <div
-          className={`fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform transition-transform duration-300 ease-in-out ${
-            isSidebarOpen ? "translate-x-0" : "translate-x-full"
-          } overflow-y-auto pt-20`}
-        >
-          <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">
-              Course Content
-            </h2>
-            <div className="space-y-6">
-              {Array.from({
-                length: Math.ceil((course?.content?.length || 0) / 5),
-              }).map((_, weekIndex) => (
-                <div key={weekIndex} className="space-y-2">
-                  <h3 className="text-md font-semibold text-gray-700 border-b border-gray-200 pb-2">
-                    Week {weekIndex + 1}
-                  </h3>
-                  {course?.content
-                    ?.slice(weekIndex * 5, (weekIndex + 1) * 5)
-                    .map((content, lectureIndex) => {
-                      const absoluteIndex = weekIndex * 5 + lectureIndex;
-                      return (
-                        <div
-                          key={absoluteIndex}
-                          className={`flex items-center gap-2 p-4 rounded-lg transition-colors ${
-                            currentVideoIndex === absoluteIndex
-                              ? "bg-indigo-50"
-                              : "hover:bg-gray-50"
-                          }`}
-                        >
-                          <div
-                            className={`flex-shrink-0 w-5 h-5 border rounded cursor-pointer flex items-center justify-center
-                              ${
-                                completedLectures[absoluteIndex]
-                                  ? "bg-green-500 border-green-500 text-white"
-                                  : "border-gray-300 hover:border-gray-400"
-                              }`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleLectureCompletion(
-                                absoluteIndex,
-                                !completedLectures[absoluteIndex]
-                              );
-                            }}
-                          >
-                            {completedLectures[absoluteIndex] && (
-                              <Check className="h-3 w-3" />
-                            )}
-                          </div>
-                          <button
-                            onClick={() => setCurrentVideoIndex(absoluteIndex)}
-                            className="flex-1 text-left"
-                          >
-                            <div className="flex items-center justify-between">
-                              <div
-                                className={`${
-                                  completedLectures[absoluteIndex]
-                                    ? "text-gray-500"
-                                    : ""
-                                }`}
-                              >
-                                <span className="text-sm font-medium">
-                                  Lecture {absoluteIndex + 1}:
-                                </span>{" "}
-                                {content.title}
-                              </div>
-                              {currentVideoIndex === absoluteIndex && (
-                                <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full ml-2">
-                                  Current
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        </div>
-                      );
-                    })}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
+        {isSidebarOpen && (
+          <CourseContentSidebar
+            content={course?.content || []}
+            currentVideoIndex={currentVideoIndex}
+            completedLectures={completedLectures}
+            handleLectureCompletion={handleLectureCompletion}
+            setCurrentVideoIndex={setCurrentVideoIndex}
+            onClose={handleCloseSidebar}
+            courseId={course?.id ?? ""}
+          />
+        )}
       </div>
+
+      {course && (
+        <CourseDetails
+          course={course}
+          isOpen={isOpen}
+          onClose={handleClose}
+          isEnrolled={isUserEnrolled}
+        />
+      )}
     </DashboardLayout>
   );
 }

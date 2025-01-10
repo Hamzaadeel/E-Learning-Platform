@@ -130,6 +130,99 @@ export function StudentDashboard() {
     return acc + Object.values(course.completedLectures).filter(Boolean).length;
   }, 0);
 
+  // Calculate completed courses
+  const completedCourses = enrolledCourses.filter(
+    (course) => course.progress === 100
+  );
+
+  // Calculate courses in progress
+  const inProgressCourses = enrolledCourses.filter(
+    (course) => course.progress < 100
+  );
+
+  const completedCoursesContent = (
+    <div className="mt-8">
+      <h2 className="text-xl font-semibold text-gray-800 mb-4 mx-8">
+        Courses Completed
+      </h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mx-8">
+        {completedCourses.length > 0 ? (
+          completedCourses.map((course) => (
+            <div
+              key={course.id}
+              className="bg-white rounded-lg shadow-sm overflow-hidden"
+            >
+              <div className="flex">
+                <img
+                  src={course.imageUrl}
+                  alt={course.title}
+                  className="w-48 h-32 object-cover"
+                />
+                <div className="p-4 flex-1">
+                  <h3 className="font-semibold text-gray-800">
+                    {course.title}
+                  </h3>
+                  <p className="text-sm text-gray-500 mb-2">
+                    by {course.instructor}
+                  </p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">
+                      {course.progress}% complete
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <p className="text-gray-500">No courses completed yet.</p>
+        )}
+      </div>
+    </div>
+  );
+
+  const continueLearningContent = (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {inProgressCourses.map((course) => (
+        <div
+          key={course.id}
+          className="bg-white rounded-lg shadow-sm overflow-hidden"
+        >
+          <div className="flex">
+            <img
+              src={course.imageUrl}
+              alt={course.title}
+              className="w-48 h-32 object-cover"
+            />
+            <div className="p-4 flex-1">
+              <h3 className="font-semibold text-gray-800">{course.title}</h3>
+              <p className="text-sm text-gray-500 mb-2">
+                by {course.instructor}
+              </p>
+              <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
+                <div
+                  className="bg-indigo-600 h-2 rounded-full"
+                  style={{ width: `${course.progress}%` }}
+                />
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">
+                  {course.progress}% complete
+                </span>
+                <button
+                  onClick={() => navigate(`/learner/course/${course.id}`)}
+                  className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+                >
+                  Continue
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
   const dashboardContent = (
     <div className="p-8">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">
@@ -177,45 +270,7 @@ export function StudentDashboard() {
       <h2 className="text-xl font-semibold text-gray-800 mb-4">
         Continue Learning
       </h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {enrolledCourses.map((course) => (
-          <div
-            key={course.id}
-            className="bg-white rounded-lg shadow-sm overflow-hidden"
-          >
-            <div className="flex">
-              <img
-                src={course.imageUrl}
-                alt={course.title}
-                className="w-48 h-32 object-cover"
-              />
-              <div className="p-4 flex-1">
-                <h3 className="font-semibold text-gray-800">{course.title}</h3>
-                <p className="text-sm text-gray-500 mb-2">
-                  by {course.instructor}
-                </p>
-                <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                  <div
-                    className="bg-indigo-600 h-2 rounded-full"
-                    style={{ width: `${course.progress}%` }}
-                  />
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">
-                    {course.progress}% complete
-                  </span>
-                  <button
-                    onClick={() => navigate(`/learner/course/${course.id}`)}
-                    className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {continueLearningContent}
     </div>
   );
 
@@ -236,6 +291,7 @@ export function StudentDashboard() {
       }
     >
       {dashboardContent}
+      {completedCoursesContent}
     </DashboardLayout>
   );
 }
