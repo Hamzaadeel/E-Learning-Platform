@@ -1,6 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Plus, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { collection, getDocs, doc, getDoc } from "firebase/firestore";
+import { Plus, Search, ChevronLeft, ChevronRight, Trash } from "lucide-react";
+import {
+  collection,
+  getDocs,
+  doc,
+  getDoc,
+  query,
+  limit,
+  deleteDoc,
+} from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Course } from "../data/courses";
 import { DashboardLayout } from "../components/DashboardLayout";
@@ -11,8 +19,9 @@ import debounce from "lodash/debounce";
 import { CourseDefinition } from "./CourseDefinition";
 import { AddCourse } from "./AddCourse";
 import { CourseDetails } from "./CourseDetails";
+import { ConfirmationModal } from "./ConfirmationModal";
 
-type SortField = "title" | "level" | "price" | "category";
+type SortField = "title" | "price";
 type SortDirection = "asc" | "desc";
 const COURSES_PER_PAGE = 9;
 
@@ -31,14 +40,25 @@ export function Courses() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [alertType, setAlertType] = useState<"success" | "error" | null>(null);
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value);
+  };
 
   // Debounced search handler
-  const debouncedSearch = useCallback(
-    debounce((value: string) => {
-      setSearchQuery(value);
-    }, 300),
-    []
-  );
+  const debouncedSearch = debounce(handleSearchChange, 300);
+
+  useEffect(() => {
+    // Cleanup function to cancel the debounce on unmount
+    return () => {
+      debouncedSearch.cancel();
+    };
+  }, [debouncedSearch]);
 
   // Memoize filtered and sorted courses
   const filteredAndSortedCourses = useMemo(() => {
@@ -58,11 +78,16 @@ export function Courses() {
         return matchesSearch && matchesLevel && matchesCategory;
       })
       .sort((a, b) => {
-        const direction = sortDirection === "asc" ? 1 : -1;
         if (sortField === "price") {
-          return (a[sortField] - b[sortField]) * direction;
+          return sortDirection === "asc"
+            ? a.price - b.price
+            : b.price - a.price;
+        } else {
+          // Sorting by title
+          return sortDirection === "asc"
+            ? a.title.localeCompare(b.title)
+            : b.title.localeCompare(a.title);
         }
-        return a[sortField].localeCompare(b[sortField]) * direction;
       });
   }, [
     courses,
@@ -88,34 +113,37 @@ export function Courses() {
     [filteredAndSortedCourses]
   );
 
-  // Update the search input handler
-  const handleSearchChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const value = e.target.value;
-      debouncedSearch(value);
-    },
-    [debouncedSearch]
-  );
-
   // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, selectedLevel, selectedCategory, sortField, sortDirection]);
 
-  const fetchCourses = async () => {
+  const fetchCourses = useCallback(async () => {
+    setLoading(true);
+    setError(null); // Reset error state before fetching
     try {
-      const querySnapshot = await getDocs(collection(db, "courses"));
+      const coursesRef = collection(db, "courses");
+      const coursesQuery = query(coursesRef, limit(100)); // Fetch a limited number of courses
+      const querySnapshot = await getDocs(coursesQuery);
+
       const coursesData = querySnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       })) as Course[];
+
+      console.log("Fetched courses:", coursesData); // Debugging log
       setCourses(coursesData);
     } catch (error) {
       console.error("Error fetching courses:", error);
+      setError("Failed to load courses. Please try again later.");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchCourses();
+  }, [fetchCourses]);
 
   const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
@@ -154,6 +182,35 @@ export function Courses() {
     setSelectedCourse(course);
   };
 
+  const handleDeleteCourse = async () => {
+    if (courseToDelete) {
+      try {
+        await deleteDoc(doc(db, "courses", courseToDelete));
+        setAlertMessage("Course deleted successfully");
+        setAlertType("success");
+        fetchCourses(); // Refresh the course list after deletion
+      } catch (error) {
+        console.error("Error deleting course:", error);
+        setAlertMessage("Failed to delete course");
+        setAlertType("error");
+      } finally {
+        setIsDeleteModalOpen(false);
+        setCourseToDelete(null);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (alertMessage) {
+      const timer = setTimeout(() => {
+        setAlertMessage(null);
+        setAlertType(null);
+      }, 5000); // Clear alert after 5 seconds
+
+      return () => clearTimeout(timer); // Cleanup timer on unmount
+    }
+  }, [alertMessage]);
+
   const coursesList = (
     <div className="p-6">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Courses</h1>
@@ -165,7 +222,7 @@ export function Courses() {
             <input
               type="text"
               placeholder="Search courses..."
-              onChange={handleSearchChange}
+              onChange={(e) => debouncedSearch(e.target.value)}
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-full focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
             />
           </div>
@@ -193,19 +250,39 @@ export function Courses() {
             <option value="design">Design</option>
             <option value="business">Business</option>
           </select>
+
+          {/* Updated Sort Dropdown */}
+          <select
+            value={`${sortField}-${sortDirection}`}
+            onChange={(e) => {
+              const [field, direction] = e.target.value.split("-");
+              setSortField(field as SortField);
+              setSortDirection(direction as SortDirection);
+            }}
+            className="border border-gray-300 rounded-lg px-4 py-2"
+          >
+            <option value="title-asc">Sort by Title (A-Z)</option>
+            <option value="title-desc">Sort by Title (Z-A)</option>
+            <option value="price-asc">Sort by Price (Low to High)</option>
+            <option value="price-desc">Sort by Price (High to Low)</option>
+          </select>
         </div>
-        {/* Add Course Button */}
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="mt-4 md:mt-0 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
-        >
-          <Plus className="h-5 w-5 mr-2" />
-          Add Course
-        </button>
+        {/* Sorting Options */}
+        <div className="flex space-x-4">
+          <button
+            onClick={() => setShowAddModal(true)} // Open the AddCourse modal
+            className="mt-4 md:mt-0 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
+          >
+            <Plus className="h-5 w-5 mr-2" />
+            Add Course
+          </button>
+        </div>
       </div>
 
       {loading ? (
         <Loader />
+      ) : error ? (
+        <div className="text-red-500">{error}</div>
       ) : (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -244,15 +321,27 @@ export function Courses() {
                         {course.durationValue} {course.durationType}
                       </span>
                     </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditCourse(course.id);
-                      }}
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                    >
-                      Edit Course
-                    </button>
+                    <div className="flex items-center">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEditCourse(course.id);
+                        }}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                      >
+                        Edit Course
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCourseToDelete(course.id);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        className="px-4 py-2  text-red-600 rounded-lg hover:text-red-700 transition-colors"
+                      >
+                        <Trash className="h-5 w-5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -317,6 +406,27 @@ export function Courses() {
           course={selectedCourse}
           isOpen={!!selectedCourse}
           onClose={() => setSelectedCourse(null)}
+        />
+      )}
+
+      {/* Alert Message */}
+      {alertMessage && (
+        <div
+          className={`fixed top-4 right-4 p-4 mb-4 rounded-lg ${
+            alertType === "success"
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-800"
+          } transition-opacity duration-300`}
+        >
+          {alertMessage}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {isDeleteModalOpen && (
+        <ConfirmationModal
+          onConfirm={handleDeleteCourse}
+          onCancel={() => setIsDeleteModalOpen(false)}
         />
       )}
     </div>

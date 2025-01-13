@@ -3,6 +3,7 @@ import { doc, getDoc, setDoc, collection, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Plus, Trash2, X } from "lucide-react";
 import { Course } from "../data/courses";
+import uploadImage from "../utils/UploadImage"; // Import the upload function
 
 interface CourseContent {
   title: string;
@@ -55,13 +56,23 @@ export function CourseDefinition({
     outlineItems: [],
     content: [],
   });
+  const [imageUploadMethod, setImageUploadMethod] = useState<"url" | "file">(
+    "url"
+  );
+  const [localImage, setLocalImage] = useState<File | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
-  const handleClickOutside = useCallback((event: MouseEvent) => {
-    if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
-      onClose();
-    }
-  }, [onClose]);
+  const handleClickOutside = useCallback(
+    (event: MouseEvent) => {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
+        onClose();
+      }
+    },
+    [onClose]
+  );
 
   useEffect(() => {
     if (isOpen) {
@@ -75,32 +86,7 @@ export function CourseDefinition({
     };
   }, [isOpen, handleClickOutside]);
 
-  useEffect(() => {
-    if (courseId) {
-      fetchCourseData();
-    }
-  }, [courseId]);
-
-  useEffect(() => {
-    const fetchInstructors = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        const instructorsList = querySnapshot.docs
-          .filter((doc) => doc.data().role === "instructor")
-          .map((doc) => ({
-            id: doc.id,
-            name: doc.data().name,
-          }));
-        setInstructors(instructorsList);
-      } catch (error) {
-        console.error("Error fetching instructors:", error);
-      }
-    };
-
-    fetchInstructors();
-  }, []);
-
-  const fetchCourseData = async () => {
+  const fetchCourseData = useCallback(async () => {
     try {
       const courseDoc = await getDoc(doc(db, "courses", courseId));
       if (courseDoc.exists()) {
@@ -127,7 +113,32 @@ export function CourseDefinition({
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
+
+  useEffect(() => {
+    if (courseId) {
+      fetchCourseData();
+    }
+  }, [courseId, fetchCourseData]);
+
+  useEffect(() => {
+    const fetchInstructors = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "users"));
+        const instructorsList = querySnapshot.docs
+          .filter((doc) => doc.data().role === "instructor")
+          .map((doc) => ({
+            id: doc.id,
+            name: doc.data().name,
+          }));
+        setInstructors(instructorsList);
+      } catch (error) {
+        console.error("Error fetching instructors:", error);
+      }
+    };
+
+    fetchInstructors();
+  }, []);
 
   const handleAddOutlineItem = () => {
     setFormData({
@@ -203,20 +214,33 @@ export function CourseDefinition({
     setFormData({ ...formData, content: newContent });
   };
 
+  const handleImageUpload = async () => {
+    let uploadedImageUrl = "";
+
+    if (imageUploadMethod === "url") {
+      uploadedImageUrl = formData.imageUrl; // Use the URL directly
+    } else if (localImage) {
+      uploadedImageUrl = await uploadImage(localImage, "ml_default"); // Upload the file
+    }
+
+    return uploadedImageUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError("");
+    setSaving(true);
 
     try {
-      setSaving(true);
+      const uploadedImageUrl = await handleImageUpload();
       await setDoc(doc(db, "courses", courseId), {
         ...formData,
+        imageUrl: uploadedImageUrl,
         updatedAt: new Date().toISOString(),
       });
       onClose();
     } catch (error) {
       console.error("Error saving course:", error);
-      setError("Failed to save course");
+      setError("Failed to save course data");
     } finally {
       setSaving(false);
     }
@@ -226,7 +250,10 @@ export function CourseDefinition({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div ref={modalRef} className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto"
+      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold text-gray-900">Edit Course</h2>
           <button
@@ -292,19 +319,42 @@ export function CourseDefinition({
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Image URL
+                    Image
                   </label>
+                  <select
+                    onChange={(e) =>
+                      setImageUploadMethod(e.target.value as "url" | "file")
+                    }
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  >
+                    <option value="url">URL</option>
+                    <option value="file">Local Device</option>
+                  </select>
+                </div>
+                {imageUploadMethod === "url" ? (
                   <input
                     type="url"
                     value={formData.imageUrl}
                     onChange={(e) =>
                       setFormData({ ...formData, imageUrl: e.target.value })
                     }
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Enter course image URL"
+                    placeholder="Enter image URL"
                     required
+                    className="w-full px-3 py-3 h-10 mt-6 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
-                </div>
+                ) : (
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setLocalImage(e.target.files[0]);
+                      }
+                    }}
+                    required
+                    className="w-full px-3 py-2 h-11 mt-6 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 pb-2"
+                  />
+                )}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Category

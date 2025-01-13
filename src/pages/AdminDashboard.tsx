@@ -15,7 +15,9 @@ export function AdminDashboard() {
     name: authUser.displayName || "Admin User",
     email: authUser.email || "",
     role: "admin",
-    avatar: authUser.photoURL || "https://ui-avatars.com/api/?name=Admin+User",
+    avatar:
+      authUser.photoURL ||
+      `https://ui-avatars.com/api/?name=${authUser.displayName || "User"}`,
   };
 
   const dashboardContent = (

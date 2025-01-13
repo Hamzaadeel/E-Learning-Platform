@@ -192,6 +192,11 @@ export function Instructors() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null
   );
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [filterName, setFilterName] = useState("");
+  const [filterEmail, setFilterEmail] = useState("");
+  const [sortField, setSortField] = useState<"name" | "createdAt">("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
 
   const fetchInstructors = async () => {
     try {
@@ -259,6 +264,12 @@ export function Instructors() {
 
       // Fetch the updated list of instructors
       await fetchInstructors();
+
+      // Set success message
+      setSuccessMessage("Instructor added successfully");
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
     } catch (error) {
       console.error("Error adding instructor:", error);
       if (error instanceof Error) {
@@ -316,6 +327,32 @@ export function Instructors() {
     });
   };
 
+  const closeMessage = () => {
+    setSuccessMessage(null);
+  };
+
+  const filteredAndSortedInstructors = instructors
+    .filter((instructor) => {
+      const matchesName = instructor.name
+        .toLowerCase()
+        .includes(filterName.toLowerCase());
+      const matchesEmail = instructor.email
+        .toLowerCase()
+        .includes(filterEmail.toLowerCase());
+      return matchesName && matchesEmail;
+    })
+    .sort((a, b) => {
+      const direction = sortDirection === "asc" ? 1 : -1;
+      if (sortField === "name") {
+        return a.name.localeCompare(b.name) * direction;
+      } else {
+        return (
+          (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()) *
+          direction
+        );
+      }
+    });
+
   if (!authUser) {
     return <Loader />;
   }
@@ -348,6 +385,48 @@ export function Instructors() {
           </button>
         </div>
 
+        {/* Filters */}
+        <div className="mb-4 flex flex-col md:flex-row md:justify-between">
+          <div className="flex space-x-4 mb-4 md:mb-0">
+            <input
+              type="text"
+              placeholder="Filter by Name"
+              value={filterName}
+              onChange={(e) => setFilterName(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2"
+            />
+            <input
+              type="text"
+              placeholder="Filter by Email"
+              value={filterEmail}
+              onChange={(e) => setFilterEmail(e.target.value)}
+              className="border border-gray-300 rounded-lg px-4 py-2"
+            />
+          </div>
+          <div className="flex space-x-4">
+            <select
+              value={sortField}
+              onChange={(e) =>
+                setSortField(e.target.value as "name" | "createdAt")
+              }
+              className="border border-gray-300 rounded-lg px-4 py-2"
+            >
+              <option value="name">Sort by Name</option>
+              <option value="createdAt">Sort by Joining Date</option>
+            </select>
+            <select
+              value={sortDirection}
+              onChange={(e) =>
+                setSortDirection(e.target.value as "asc" | "desc")
+              }
+              className="border border-gray-300 rounded-lg px-4 py-2"
+            >
+              <option value="asc">Ascending</option>
+              <option value="desc">Descending</option>
+            </select>
+          </div>
+        </div>
+
         {loading ? (
           <Loader />
         ) : (
@@ -355,22 +434,22 @@ export function Instructors() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Name
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Email
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Joined Date
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-right text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {instructors.map((instructor) => (
+                {filteredAndSortedInstructors.map((instructor) => (
                   <tr key={instructor.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -408,6 +487,19 @@ export function Instructors() {
           </div>
         )}
       </div>
+
+      {/* Alert Message */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 mb-4 p-3 bg-green-100 text-green-700 rounded-lg shadow-md flex items-center">
+          <span>{successMessage}</span>
+          <button
+            onClick={closeMessage}
+            className="ml-4 text-green-700 hover:text-green-900"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Add Instructor Modal */}
       <InstructorModal

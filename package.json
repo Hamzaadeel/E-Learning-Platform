@@ -10,8 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@cloudinary/react": "^1.13.1",
+    "@cloudinary/url-gen": "^1.21.0",
     "@supabase/supabase-js": "^2.39.7",
     "@types/lodash": "^4.17.14",
+    "axios": "^1.7.9",
     "clsx": "^2.1.0",
     "embla-carousel-react": "^8.0.0-rc22",
     "firebase": "^11.1.0",

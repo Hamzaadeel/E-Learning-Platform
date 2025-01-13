@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { User } from "../types";
 import {
   Home,
@@ -12,7 +12,7 @@ import {
   DollarSign,
   LogOut,
 } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 interface SidebarProps {
@@ -22,8 +22,10 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ user, className }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
+  const [selectedTab, setSelectedTab] = useState<string>("");
 
   const adminNavigation = [
     { icon: Home, label: "Dashboard", path: "/admin-dashboard" },
@@ -55,6 +57,10 @@ const Sidebar: React.FC<SidebarProps> = ({ user, className }) => {
 
   const items = menuItems[user.role] || menuItems.learner;
 
+  useEffect(() => {
+    setSelectedTab(location.pathname);
+  }, [location.pathname]);
+
   const handleLogout = async () => {
     try {
       await logout();
@@ -62,6 +68,11 @@ const Sidebar: React.FC<SidebarProps> = ({ user, className }) => {
     } catch (error) {
       console.error("Logout failed:", error);
     }
+  };
+
+  const handleTabClick = (path: string) => {
+    setSelectedTab(path);
+    navigate(path);
   };
 
   return (
@@ -127,8 +138,12 @@ const Sidebar: React.FC<SidebarProps> = ({ user, className }) => {
             {items.map((item) => (
               <button
                 key={item.label}
-                onClick={() => navigate(item.path)}
-                className="flex items-center w-full px-4 py-2 text-gray-600 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+                onClick={() => handleTabClick(item.path)}
+                className={`flex items-center w-full px-4 py-2 rounded-lg transition-colors ${
+                  selectedTab === item.path
+                    ? "bg-indigo-100 text-indigo-600"
+                    : "text-gray-600 hover:bg-indigo-50 hover:text-indigo-600"
+                }`}
               >
                 <item.icon className="h-5 w-5" />
                 <span className="ml-3">{item.label}</span>

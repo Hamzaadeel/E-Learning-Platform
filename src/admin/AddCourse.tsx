@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Plus, Trash2, X } from "lucide-react";
+import uploadImage from "../utils/UploadImage"; // Import the upload function
 
 interface CourseContent {
   title: string;
@@ -40,6 +41,12 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
     outlineItems: [] as OutlineItem[],
     content: [] as CourseContent[],
   });
+  const [imageUploadMethod, setImageUploadMethod] = useState<"url" | "file">(
+    "url"
+  );
+  const [localImage, setLocalImage] = useState<File | null>(null);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
+  const [alertType, setAlertType] = useState<"success" | "error" | null>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
   const handleClickOutside = useCallback(
@@ -179,24 +186,53 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
     setFormData({ ...formData, content: newContent });
   };
 
+  const handleImageUpload = async () => {
+    let uploadedImageUrl = "";
+
+    if (imageUploadMethod === "url") {
+      uploadedImageUrl = formData.imageUrl; // Use the URL directly
+    } else if (localImage) {
+      uploadedImageUrl = await uploadImage(localImage, "ml_default"); // Upload the file
+    }
+
+    return uploadedImageUrl;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
     try {
       setSaving(true);
+      const uploadedImageUrl = await handleImageUpload();
       await addDoc(collection(db, "courses"), {
         ...formData,
+        imageUrl: uploadedImageUrl,
         createdAt: new Date().toISOString(),
       });
+      setAlertMessage("Course added successfully!");
+      setAlertType("success");
       onClose();
     } catch (error) {
       console.error("Error saving course:", error);
       setError("Failed to save course");
+      setAlertMessage("Failed to add course");
+      setAlertType("error");
     } finally {
       setSaving(false);
     }
   };
+
+  useEffect(() => {
+    if (alertMessage) {
+      const timer = setTimeout(() => {
+        setAlertMessage(null);
+        setAlertType(null);
+      }, 5000); // Clear alert after 5 seconds
+
+      return () => clearTimeout(timer); // Cleanup timer on unmount
+    }
+  }, [alertMessage]);
 
   if (!isOpen) return null;
 
@@ -215,6 +251,19 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
             <X className="h-6 w-6" />
           </button>
         </div>
+
+        {/* Alert Message */}
+        {alertMessage && (
+          <div
+            className={`fixed top-4 right-4 p-4 mb-4 rounded-lg ${
+              alertType === "success"
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            } transition-opacity duration-300`}
+          >
+            {alertMessage}
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
@@ -240,7 +289,7 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
                   required
                 />
               </div>
-              <div className="flex flex-col space-y-4">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Price ($)
                 </label>
@@ -259,7 +308,7 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
                   placeholder="0 for free course"
                 />
                 {formData.price === 0 && (
-                  <span className="text-sm text-gray-500 mt-1">
+                  <span className="text-xs text-gray-500 mt-1">
                     This course will be free
                   </span>
                 )}
@@ -268,17 +317,42 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Image URL
                 </label>
+                <select
+                  onChange={(e) =>
+                    setImageUploadMethod(e.target.value as "url" | "file")
+                  }
+                  className="w-full border border-gray-300 rounded-lg p-2 mb-2"
+                >
+                  <option value="url">URL</option>
+                  <option value="file">Local Device</option>
+                </select>
+              </div>
+              {imageUploadMethod === "url" ? (
                 <input
                   type="url"
                   value={formData.imageUrl}
                   onChange={(e) =>
                     setFormData({ ...formData, imageUrl: e.target.value })
                   }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  placeholder="Enter course image URL"
+                  placeholder="Enter image URL"
                   required
+                  className="w-full border mt-6 border-gray-300 rounded-lg p-2 h-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
-              </div>
+              ) : (
+                <div className="flex items-center border mt-6 h-10 border-gray-300 rounded-lg">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      if (e.target.files) {
+                        setLocalImage(e.target.files[0]);
+                      }
+                    }}
+                    required
+                    className="flex items-center p-2 h-10 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Category
@@ -612,7 +686,8 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
             Cancel
           </button>
           <button
-            type="submit"
+            type="button"
+            onClick={handleSubmit}
             disabled={saving}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
           >
