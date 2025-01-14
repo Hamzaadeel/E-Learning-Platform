@@ -1,3 +1,4 @@
+import { useEffect, useRef, useCallback } from "react";
 import { X } from "lucide-react";
 import { Course } from "../types";
 
@@ -8,12 +9,41 @@ interface CourseDetailsProps {
 }
 
 export function CourseDetails({ course, isOpen, onClose }: CourseDetailsProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  const handleClickOutside = useCallback(
+    (event: MouseEvent) => {
+      if (
+        modalRef.current &&
+        !modalRef.current.contains(event.target as Node)
+      ) {
+        onClose(); // Close the modal
+      }
+    },
+    [onClose]
+  );
+
+  useEffect(() => {
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    } else {
+      document.removeEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen, handleClickOutside]);
+
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
+      <div
+        ref={modalRef}
+        className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex justify-between items-center mb-4 border-b pb-4">
           <h2 className="text-2xl font-bold text-gray-900">{course.title}</h2>
           <button
             onClick={onClose}
@@ -23,6 +53,7 @@ export function CourseDetails({ course, isOpen, onClose }: CourseDetailsProps) {
           </button>
         </div>
 
+        {/* Course details content */}
         <div className="space-y-6">
           {/* Course Image */}
           <img

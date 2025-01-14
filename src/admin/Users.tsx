@@ -1,10 +1,25 @@
 import { useState, useEffect } from "react";
-import { collection, getDocs, deleteDoc, doc } from "firebase/firestore";
+import {
+  collection,
+  getDocs,
+  deleteDoc,
+  doc,
+  updateDoc,
+} from "firebase/firestore";
 import { db } from "../config/firebase";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
-import { Trash2, Search, ChevronUp, ChevronDown } from "lucide-react";
+import {
+  Trash2,
+  Search,
+  ChevronUp,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  X,
+  Edit2,
+} from "lucide-react";
 import { Loader } from "../components/Loader";
 
 interface FirestoreUser {
@@ -17,6 +32,148 @@ interface FirestoreUser {
 
 type SortDirection = "asc" | "desc";
 
+interface UserModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  user?: FirestoreUser;
+  onSubmit: (data: Omit<FirestoreUser, "uid" | "createdAt">) => Promise<void>;
+  title: string;
+  submitLabel: string;
+}
+
+function UserModal({
+  isOpen,
+  onClose,
+  user,
+  onSubmit,
+  title,
+  submitLabel,
+}: UserModalProps) {
+  const [formData, setFormData] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    role: user?.role || "learner", // Default role
+  });
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!formData.name || !formData.email) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    try {
+      setSaving(true);
+      await onSubmit({
+        name: formData.name,
+        email: formData.email,
+        role: formData.role,
+      });
+      onClose();
+    } catch (error) {
+      console.error("Error saving user:", error);
+      setError("Failed to save user");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg w-full max-w-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700"
+          >
+            <X className="h-6 w-6" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Name*
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Email*
+            </label>
+            <input
+              type="email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Role*
+            </label>
+            <select
+              value={formData.role}
+              onChange={(e) =>
+                setFormData({ ...formData, role: e.target.value })
+              }
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              required
+            >
+              <option value="admin">Admin</option>
+              <option value="instructor">Instructor</option>
+              <option value="learner">Learner</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end space-x-4 mt-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            >
+              {saving ? "Saving..." : submitLabel}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function Users() {
   const { currentUser: authUser } = useAuth();
   const [users, setUsers] = useState<FirestoreUser[]>([]);
@@ -25,6 +182,10 @@ export default function Users() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState<string>("all");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+  const [editingUser, setEditingUser] = useState<FirestoreUser | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -104,6 +265,11 @@ export default function Users() {
       return sortDirection === "asc" ? dateA - dateB : dateB - dateA;
     });
 
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   const content = (
     <div className="p-6">
       <h1 className="text-2xl font-bold text-gray-800 mb-6">Users</h1>
@@ -171,13 +337,13 @@ export default function Users() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredUsers.map((user, index) => (
+                {paginatedUsers.map((user, index) => (
                   <tr key={user.uid} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {index + 1}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">
+                      <div className="text-sm font-bold text-gray-900">
                         {user.name || "N/A"}
                       </div>
                     </td>
@@ -203,6 +369,15 @@ export default function Users() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       <button
+                        onClick={() => {
+                          setEditingUser(user);
+                        }}
+                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        title="Edit user"
+                      >
+                        <Edit2 className="h-5 w-5" />
+                      </button>
+                      <button
                         onClick={() => handleDeleteUser(user.uid)}
                         disabled={
                           deleting === user.uid || user.uid === authUser.uid
@@ -224,10 +399,95 @@ export default function Users() {
               </tbody>
             </table>
           </div>
+          <div className="flex justify-center mt-4">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="px-4 py-3 bg-gray-300 rounded-lg disabled:opacity-50" // Increased padding for height
+              aria-label="Previous"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </button>
+            <span className="mx-4">
+              Page {currentPage} of{" "}
+              {Math.ceil(filteredUsers.length / itemsPerPage)}
+            </span>
+            <button
+              onClick={() =>
+                setCurrentPage((prev) =>
+                  Math.min(
+                    prev + 1,
+                    Math.ceil(filteredUsers.length / itemsPerPage)
+                  )
+                )
+              }
+              disabled={
+                currentPage === Math.ceil(filteredUsers.length / itemsPerPage)
+              }
+              className="px-4 py-3 bg-gray-300 rounded-lg disabled:opacity-50" // Increased padding for height
+              aria-label="Next"
+            >
+              <ChevronRight className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       )}
     </div>
   );
 
-  return <DashboardLayout user={user}>{content}</DashboardLayout>;
+  const handleEditUser = async (
+    data: Omit<FirestoreUser, "uid" | "createdAt">
+  ) => {
+    if (!editingUser) return;
+
+    try {
+      const userRef = doc(db, "users", editingUser.uid);
+      await updateDoc(userRef, {
+        name: data.name,
+        email: data.email,
+        role: data.role,
+      });
+
+      await fetchUsers(); // Refresh the user list
+      setEditingUser(null); // Close the modal
+      setSuccessMessage("Saved changes"); // Set success message
+      setTimeout(() => {
+        setSuccessMessage(null); // Clear success message after 5 seconds
+      }, 5000);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      alert("Failed to update user. Please try again.");
+    }
+  };
+
+  return (
+    <DashboardLayout user={user}>
+      {content}
+
+      {/* Success Alert */}
+      {successMessage && (
+        <div className="fixed top-4 right-4 mb-4 p-3 bg-green-100 text-green-700 rounded-lg shadow-md flex items-center">
+          <span>{successMessage}</span>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="ml-4 text-green-700 hover:text-green-900"
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
+      {/* Edit User Modal */}
+      {editingUser && (
+        <UserModal
+          isOpen={!!editingUser}
+          onClose={() => setEditingUser(null)}
+          user={editingUser}
+          onSubmit={handleEditUser}
+          title="Edit User"
+          submitLabel="Save Changes"
+        />
+      )}
+    </DashboardLayout>
+  );
 }

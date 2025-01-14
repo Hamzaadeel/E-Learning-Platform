@@ -66,7 +66,7 @@ export function MyCourses() {
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
         const userData = userDoc.data();
-        const userName = authUser.displayName || "User";
+        const userName = authUser.displayName || userData.name || "User";
 
         console.log("Fetched user data:", userData);
         console.log("Auth user display name:", userName);
@@ -350,19 +350,15 @@ export function MyCourses() {
 
   return (
     <DashboardLayout
-      user={
-        user || {
-          id: authUser.uid,
-          name: authUser.displayName || "User",
-          email: authUser.email || "",
-          role: "learner",
-          avatar:
-            authUser.photoURL ||
-            `https://ui-avatars.com/api/?name=${
-              authUser.displayName || "User"
-            }`,
-        }
-      }
+      user={{
+        id: authUser.uid,
+        name: user?.name || authUser.displayName || "User",
+        email: authUser.email || "",
+        role: "learner",
+        avatar:
+          authUser.photoURL ||
+          `https://ui-avatars.com/api/?name=${authUser.displayName || "User"}`,
+      }}
     >
       <div className="p-6 relative">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">My Courses</h1>

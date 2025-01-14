@@ -13,7 +13,14 @@ import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
 import { Loader } from "../components/Loader";
-import { Plus, Edit2, Trash2, X } from "lucide-react";
+import {
+  Plus,
+  Edit2,
+  Trash2,
+  X,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 
 interface Instructor {
   id: string;
@@ -197,6 +204,8 @@ export function Instructors() {
   const [filterEmail, setFilterEmail] = useState("");
   const [sortField, setSortField] = useState<"name" | "createdAt">("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
 
   const fetchInstructors = async () => {
     try {
@@ -266,7 +275,7 @@ export function Instructors() {
       await fetchInstructors();
 
       // Set success message
-      setSuccessMessage("Instructor added successfully");
+      setSuccessMessage("Saved changes");
       setTimeout(() => {
         setSuccessMessage(null);
       }, 5000);
@@ -292,6 +301,10 @@ export function Instructors() {
       });
 
       await fetchInstructors();
+      setSuccessMessage("Saved changes");
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
     } catch (error) {
       console.error("Error updating instructor:", error);
       throw new Error("Failed to update instructor");
@@ -353,6 +366,11 @@ export function Instructors() {
       }
     });
 
+  const paginatedInstructors = filteredAndSortedInstructors.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
   if (!authUser) {
     return <Loader />;
   }
@@ -375,7 +393,7 @@ export function Instructors() {
     >
       <div className="p-6">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Instructors</h1>
-        <div className="flex flex-col md:flex-row md:justify-between mb-6">
+        <div className="flex justify-end mb-6">
           <button
             onClick={() => setShowAddModal(true)}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors flex items-center"
@@ -435,6 +453,9 @@ export function Instructors() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
+                    ID
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
                     Name
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">
@@ -449,10 +470,13 @@ export function Instructors() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredAndSortedInstructors.map((instructor) => (
+                {paginatedInstructors.map((instructor, index) => (
                   <tr key={instructor.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
+                      <div className="text-sm text-gray-500">{index + 1}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm font-bold text-gray-900">
                         {instructor.name}
                       </div>
                     </td>
@@ -471,13 +495,13 @@ export function Instructors() {
                         onClick={() => setEditingInstructor(instructor)}
                         className="text-indigo-600 hover:text-indigo-900 mr-4"
                       >
-                        <Edit2 className="h-4 w-4" />
+                        <Edit2 className="h-5 w-5" />
                       </button>
                       <button
                         onClick={() => setShowDeleteConfirm(instructor.id)}
                         className="text-red-600 hover:text-red-900"
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </td>
                   </tr>
@@ -550,6 +574,39 @@ export function Instructors() {
           </div>
         </div>
       )}
+
+      <div className="flex justify-center mt-4">
+        <button
+          onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+          disabled={currentPage === 1}
+          className="px-4 py-2 bg-gray-300 rounded-lg disabled:opacity-50"
+          aria-label="Previous"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+        <span className="mx-4">
+          Page {currentPage} of{" "}
+          {Math.ceil(filteredAndSortedInstructors.length / itemsPerPage)}
+        </span>
+        <button
+          onClick={() =>
+            setCurrentPage((prev) =>
+              Math.min(
+                prev + 1,
+                Math.ceil(filteredAndSortedInstructors.length / itemsPerPage)
+              )
+            )
+          }
+          disabled={
+            currentPage ===
+            Math.ceil(filteredAndSortedInstructors.length / itemsPerPage)
+          }
+          className="px-4 py-2 bg-gray-300 rounded-lg disabled:opacity-50"
+          aria-label="Next"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      </div>
     </DashboardLayout>
   );
 }

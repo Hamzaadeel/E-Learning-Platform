@@ -1,4 +1,4 @@
-import { useState, useEffect, ChangeEvent } from "react";
+import { useState, useEffect, ChangeEvent, useCallback } from "react";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { updateProfile, updateEmail, updatePassword } from "firebase/auth";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
@@ -8,6 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
 import { Loader } from "../components/Loader";
 import { Camera, Save } from "lucide-react";
+import { getAuth } from "firebase/auth";
 
 interface UserProfile {
   name: string;
@@ -21,7 +22,7 @@ interface UserProfile {
 export function Settings() {
   const { currentUser: authUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState({ type: "", text: "" });
 
@@ -40,22 +41,7 @@ export function Settings() {
     confirmPassword: "",
   });
 
-  useEffect(() => {
-    if (authUser) {
-      fetchUserData();
-    }
-  }, [authUser]);
-
-  useEffect(() => {
-    if (message.text) {
-      const timer = setTimeout(() => {
-        setMessage({ type: "", text: "" });
-      }, 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [message.text]);
-
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       const userDoc = await getDoc(doc(db, "users", authUser.uid));
@@ -72,21 +58,33 @@ export function Settings() {
             `https://ui-avatars.com/api/?name=${userData.name || "User"}`,
         });
         setProfile({
-          name: userData.name || authUser.displayName || "",
-          email: userData.email || authUser.email || "",
+          name: userData.name || "",
+          email: userData.email || "",
           phone: userData.phone || "",
           bio: userData.bio || "",
           location: userData.location || "",
-          avatar: userData.avatar || authUser.photoURL || "",
+          avatar: userData.avatar || "",
         });
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
-      setMessage({ type: "error", text: "Failed to load user data" });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [authUser]);
+
+  useEffect(() => {
+    if (authUser) {
+      fetchUserData();
+    }
+  }, [authUser, fetchUserData]);
+
+  useEffect(() => {
+    if (message.text) {
+      const timer = setTimeout(() => {
+        setMessage({ type: "", text: "" });
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message.text]);
 
   const handleProfileChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
@@ -124,21 +122,28 @@ export function Settings() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!authUser) return;
+
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user) {
+      console.error("No authenticated user found");
+      return;
+    }
 
     try {
       setSaving(true);
       setMessage({ type: "", text: "" });
 
       // Update user profile in Firebase Auth
-      await updateProfile(authUser, {
+      await updateProfile(user, {
         displayName: profile.name,
         photoURL: profile.avatar,
       });
 
       // Update email if changed
-      if (profile.email !== authUser.email) {
-        await updateEmail(authUser, profile.email);
+      if (profile.email !== user.email) {
+        await updateEmail(user, profile.email);
       }
 
       // Update password if provided
@@ -146,11 +151,11 @@ export function Settings() {
         if (passwords.newPassword !== passwords.confirmPassword) {
           throw new Error("New passwords don't match");
         }
-        await updatePassword(authUser, passwords.newPassword);
+        await updatePassword(user, passwords.newPassword);
       }
 
       // Update user data in Firestore
-      const userRef = doc(db, "users", authUser.uid);
+      const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         name: profile.name,
         email: profile.email,
@@ -197,7 +202,7 @@ export function Settings() {
         }
       }
     >
-      <div className="p-6 flex justify-center min-h-screen bg-gray-50">
+      <div className="p-6 flex justify-start min-h-screen bg-gray-50">
         <div className="w-full max-w-2xl">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
 
@@ -364,7 +369,7 @@ export function Settings() {
                   className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
                 >
                   {saving ? (
-                    <div className="w-5 h-5 mr-2">
+                    <div className="flex justify-center items-center w-full h-full">
                       <Loader />
                     </div>
                   ) : (

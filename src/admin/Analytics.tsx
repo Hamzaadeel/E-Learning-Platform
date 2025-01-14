@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { doc, getDoc } from "firebase/firestore";
+import { useCallback, useEffect, useState } from "react";
+import { doc, getDoc, Timestamp } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
@@ -17,44 +17,44 @@ import {
   PieChart,
   Pie,
   Cell,
-  BarChart,
-  Bar,
 } from "recharts";
+import { collection, getDocs } from "firebase/firestore";
 
-// Mock data for charts
-const enrollmentData = [
-  { month: "Jan", students: 65 },
-  { month: "Feb", students: 85 },
-  { month: "Mar", students: 120 },
-  { month: "Apr", students: 175 },
-  { month: "May", students: 220 },
-  { month: "Jun", students: 250 },
-];
 
-const courseDistributionData = [
-  { name: "Web Development", value: 35 },
-  { name: "Mobile Development", value: 25 },
-  { name: "Data Science", value: 20 },
-  { name: "Design", value: 15 },
-  { name: "Business", value: 5 },
-];
-
-const revenueData = [
-  { month: "Jan", revenue: 12500 },
-  { month: "Feb", revenue: 18500 },
-  { month: "Mar", revenue: 25000 },
-  { month: "Apr", revenue: 32000 },
-  { month: "May", revenue: 45000 },
-  { month: "Jun", revenue: 52000 },
-];
 
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
+
+interface CourseDistribution {
+  name: string;
+  value: number;
+}
+
+interface EnrollmentData {
+  week: string; // Updated to week
+  users: number; // Changed from students to users
+}
+
+// Function to get the week number of the year
+function getWeekNumber(date: Date): number {
+  const startDate = new Date(date.getFullYear(), 0, 1); // January 1st of the current year
+  const days = Math.floor(
+    (date.valueOf() - startDate.valueOf()) / (24 * 60 * 60 * 1000)
+  );
+  return Math.ceil((days + startDate.getDay() + 1) / 7); // Calculate week number
+}
 
 export function Analytics() {
   const { currentUser: authUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
+  const [totalUsers, setTotalUsers] = useState<number>(0); // Changed to totalUsers
+  const [totalCourses, setTotalCourses] = useState<number>(0);
+  const [totalInstructors, setTotalInstructors] = useState<number>(0);
+  const [courseDistributionData, setCourseDistributionData] = useState<
+    CourseDistribution[]
+  >([]);
+  const [enrollmentData, setEnrollmentData] = useState<EnrollmentData[]>([]);
 
-  const fetchUserData = async () => {
+  const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       const userDoc = await getDoc(doc(db, "users", authUser.uid));
@@ -74,13 +74,93 @@ export function Analytics() {
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
-  };
+  }, [authUser]);
 
   useEffect(() => {
     if (authUser) {
       fetchUserData();
     }
-  }, [authUser]);
+  }, [authUser, fetchUserData]);
+
+  const fetchData = useCallback(async () => {
+    try {
+      // Fetch total users
+      const usersSnapshot = await getDocs(collection(db, "users"));
+      const usersData = usersSnapshot.docs; // Get all users
+      setTotalUsers(usersData.length); // Set total users
+
+      // Fetch total courses
+      const coursesSnapshot = await getDocs(collection(db, "courses"));
+      setTotalCourses(coursesSnapshot.docs.length);
+
+      // Fetch total instructors
+      const instructorsSnapshot = await getDocs(collection(db, "users"));
+      const instructorsData = instructorsSnapshot.docs.filter(
+        (doc) => doc.data().role === "instructor"
+      );
+      setTotalInstructors(instructorsData.length);
+
+      // Fetch course distribution data
+      const courseCategories: Record<string, number> = {};
+      coursesSnapshot.docs.forEach((doc) => {
+        const category = doc.data().category;
+        if (category) {
+          courseCategories[category] = (courseCategories[category] || 0) + 1;
+        }
+      });
+      setCourseDistributionData(
+        Object.entries(courseCategories).map(([name, value]) => ({
+          name,
+          value,
+        }))
+      );
+
+      // Prepare enrollment data based on createdAt timestamp for all users
+      const enrollmentCounts: Record<string, number> = {}; // To hold counts by week
+      usersData.forEach((doc) => {
+        const userData = doc.data();
+        let createdAt: Date;
+
+        // Check if createdAt is a Firestore timestamp
+        if (userData.createdAt instanceof Timestamp) {
+          createdAt = userData.createdAt.toDate(); // Convert Firestore timestamp to Date
+        } else if (typeof userData.createdAt === "string") {
+          createdAt = new Date(userData.createdAt); // Convert string to Date
+        } else if (typeof userData.createdAt === "number") {
+          createdAt = new Date(userData.createdAt); // Convert Unix timestamp to Date
+        } else {
+          console.warn(
+            `Unexpected createdAt type for user ${doc.id}:`,
+            userData.createdAt
+          );
+          return; // Skip this user if createdAt is not valid
+        }
+
+        const year = createdAt.getFullYear();
+        const week = getWeekNumber(createdAt); // Now this function is defined
+        const weekKey = `${year}-W${week}`; // Format: 'YYYY-WX'
+
+        enrollmentCounts[weekKey] = (enrollmentCounts[weekKey] || 0) + 1; // Increment count for the week
+      });
+
+      // Convert the counts to an array for the chart
+      const formattedEnrollmentData = Object.entries(enrollmentCounts).map(
+        ([week, users]) => ({
+          week,
+          users,
+        })
+      );
+
+      console.log("Formatted Enrollment Data:", formattedEnrollmentData); // Debugging line
+      setEnrollmentData(formattedEnrollmentData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   if (!authUser) {
     return <Loader />;
@@ -108,48 +188,47 @@ export function Analytics() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           <div className="bg-indigo-600 text-white p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
-            <h3 className="text-lg font-semibold mb-2">Total Students</h3>
-            <p className="text-4xl font-bold mb-2">250</p>
+            <h3 className="text-lg font-semibold mb-2">Total Users</h3>{" "}
+            {/* Updated title */}
+            <p className="text-4xl font-bold mb-2">{totalUsers}</p>{" "}
+            {/* Updated to totalUsers */}
             <div className="flex items-center text-indigo-200">
-              <span className="text-green-400 mr-1">↑</span>
-              <span>15% from last month</span>
+              <span>Users</span>
             </div>
           </div>
           <div className="bg-green-600 text-white p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
-            <h3 className="text-lg font-semibold mb-2">Total Revenue</h3>
-            <p className="text-4xl font-bold mb-2">$52,000</p>
+            <h3 className="text-lg font-semibold mb-2">Total Courses</h3>
+            <p className="text-4xl font-bold mb-2">{totalCourses}</p>
             <div className="flex items-center text-green-200">
-              <span className="text-green-400 mr-1">↑</span>
-              <span>12% from last month</span>
+              <span>Courses</span>
             </div>
           </div>
           <div className="bg-purple-600 text-white p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
-            <h3 className="text-lg font-semibold mb-2">Active Courses</h3>
-            <p className="text-4xl font-bold mb-2">45</p>
+            <h3 className="text-lg font-semibold mb-2">Total Instructors</h3>
+            <p className="text-4xl font-bold mb-2">{totalInstructors}</p>
             <div className="flex items-center text-purple-200">
-              <span className="text-green-400 mr-1">↑</span>
-              <span>8% from last month</span>
+              <span>Instructors</span>
             </div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Student Enrollment Trend */}
+          {/* Total Users Signing Up Trend */}
           <div className="bg-white p-6 rounded-lg shadow-lg">
             <h2 className="text-lg font-semibold mb-4">
-              Student Enrollment Trend
+              Total Users Signing Up Trend
             </h2>
             <div className="h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={enrollmentData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey="week" />
                   <YAxis />
                   <Tooltip />
                   <Legend />
                   <Line
                     type="monotone"
-                    dataKey="students"
+                    dataKey="users"
                     stroke="#8884d8"
                     strokeWidth={2}
                   />
@@ -176,7 +255,7 @@ export function Analytics() {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {courseDistributionData.map((entry, index) => (
+                    {courseDistributionData.map((_, index) => (
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
@@ -185,30 +264,6 @@ export function Analytics() {
                   </Pie>
                   <Tooltip />
                 </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Revenue Analysis */}
-          <div className="bg-white p-6 rounded-lg shadow-lg lg:col-span-2">
-            <h2 className="text-lg font-semibold mb-4">Revenue Analysis</h2>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={revenueData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip
-                    formatter={(value) =>
-                      new Intl.NumberFormat("en-US", {
-                        style: "currency",
-                        currency: "USD",
-                      }).format(value as number)
-                    }
-                  />
-                  <Legend />
-                  <Bar dataKey="revenue" fill="#82ca9d" />
-                </BarChart>
               </ResponsiveContainer>
             </div>
           </div>

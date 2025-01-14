@@ -148,6 +148,9 @@ export function Settings() {
       }
 
       setSuccess("Profile updated successfully");
+      setTimeout(() => {
+        setSuccess("");
+      }, 5000);
       setFormData((prev) => ({
         ...prev,
         currentPassword: "",
@@ -186,7 +189,7 @@ export function Settings() {
         }
       }
     >
-      <div className="p-6 flex justify-center">
+      <div className="p-6 flex justify-start">
         <div className="w-full max-w-3xl">
           <h1 className="text-2xl font-bold text-gray-900 mb-6">Settings</h1>
 

@@ -68,6 +68,7 @@ export function CourseDefinition({
         modalRef.current &&
         !modalRef.current.contains(event.target as Node)
       ) {
+        console.log("Clicked outside the modal, closing it."); // Added logging for debugging
         onClose();
       }
     },
@@ -252,9 +253,10 @@ export function CourseDefinition({
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div
         ref={modalRef}
-        className="bg-white rounded-lg w-full max-w-4xl p-6 max-h-[90vh] overflow-y-auto"
+        className="bg-white rounded-lg w-full max-w-4xl p-6 flex flex-col max-h-[90vh] overflow-hidden"
       >
-        <div className="flex justify-between items-center mb-6">
+        {/* Fixed Header */}
+        <div className="flex justify-between items-center mb-4 border-b pb-4">
           <h2 className="text-2xl font-bold text-gray-900">Edit Course</h2>
           <button
             onClick={onClose}
@@ -276,7 +278,10 @@ export function CourseDefinition({
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form
+              onSubmit={handleSubmit}
+              className="flex-grow overflow-y-auto space-y-6"
+            >
               {/* Basic Course Information */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -677,27 +682,28 @@ export function CourseDefinition({
                   ))}
                 </div>
               </div>
-
-              {/* Submit Buttons */}
-              <div className="flex justify-end space-x-4 mt-6">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save Changes"}
-                </button>
-              </div>
             </form>
           </>
         )}
+
+        {/* Fixed Footer */}
+        <div className="flex justify-end space-x-4 mt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={saving}
+            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors disabled:opacity-50"
+            onClick={handleSubmit}
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </button>
+        </div>
       </div>
     </div>
   );

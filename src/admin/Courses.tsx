@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Plus, Search, ChevronLeft, ChevronRight, Trash } from "lucide-react";
+import { Plus, Search, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import {
   collection,
   getDocs,
@@ -339,7 +339,7 @@ export function Courses() {
                         }}
                         className="px-4 py-2  text-red-600 rounded-lg hover:text-red-700 transition-colors"
                       >
-                        <Trash className="h-5 w-5" />
+                        <Trash2 className="h-5 w-5" />
                       </button>
                     </div>
                   </div>

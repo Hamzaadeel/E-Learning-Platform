@@ -175,12 +175,12 @@ export default function Register() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              <a
-                href="/login"
+              <button
+                onClick={() => navigate("/login")}
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
                 Already have an account? Sign in
-              </a>
+              </button>
             </div>
           </div>
 
