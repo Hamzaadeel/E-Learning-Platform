@@ -20,8 +20,6 @@ import {
 } from "recharts";
 import { collection, getDocs } from "firebase/firestore";
 
-
-
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 interface CourseDistribution {
@@ -46,9 +44,10 @@ function getWeekNumber(date: Date): number {
 export function Analytics() {
   const { currentUser: authUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
-  const [totalUsers, setTotalUsers] = useState<number>(0); // Changed to totalUsers
+  const [totalUsers, setTotalUsers] = useState<number>(0);
   const [totalCourses, setTotalCourses] = useState<number>(0);
   const [totalInstructors, setTotalInstructors] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
   const [courseDistributionData, setCourseDistributionData] = useState<
     CourseDistribution[]
   >([]);
@@ -82,85 +81,91 @@ export function Analytics() {
     }
   }, [authUser, fetchUserData]);
 
-  const fetchData = useCallback(async () => {
-    try {
-      // Fetch total users
-      const usersSnapshot = await getDocs(collection(db, "users"));
-      const usersData = usersSnapshot.docs; // Get all users
-      setTotalUsers(usersData.length); // Set total users
-
-      // Fetch total courses
-      const coursesSnapshot = await getDocs(collection(db, "courses"));
-      setTotalCourses(coursesSnapshot.docs.length);
-
-      // Fetch total instructors
-      const instructorsSnapshot = await getDocs(collection(db, "users"));
-      const instructorsData = instructorsSnapshot.docs.filter(
-        (doc) => doc.data().role === "instructor"
-      );
-      setTotalInstructors(instructorsData.length);
-
-      // Fetch course distribution data
-      const courseCategories: Record<string, number> = {};
-      coursesSnapshot.docs.forEach((doc) => {
-        const category = doc.data().category;
-        if (category) {
-          courseCategories[category] = (courseCategories[category] || 0) + 1;
-        }
-      });
-      setCourseDistributionData(
-        Object.entries(courseCategories).map(([name, value]) => ({
-          name,
-          value,
-        }))
-      );
-
-      // Prepare enrollment data based on createdAt timestamp for all users
-      const enrollmentCounts: Record<string, number> = {}; // To hold counts by week
-      usersData.forEach((doc) => {
-        const userData = doc.data();
-        let createdAt: Date;
-
-        // Check if createdAt is a Firestore timestamp
-        if (userData.createdAt instanceof Timestamp) {
-          createdAt = userData.createdAt.toDate(); // Convert Firestore timestamp to Date
-        } else if (typeof userData.createdAt === "string") {
-          createdAt = new Date(userData.createdAt); // Convert string to Date
-        } else if (typeof userData.createdAt === "number") {
-          createdAt = new Date(userData.createdAt); // Convert Unix timestamp to Date
-        } else {
-          console.warn(
-            `Unexpected createdAt type for user ${doc.id}:`,
-            userData.createdAt
-          );
-          return; // Skip this user if createdAt is not valid
-        }
-
-        const year = createdAt.getFullYear();
-        const week = getWeekNumber(createdAt); // Now this function is defined
-        const weekKey = `${year}-W${week}`; // Format: 'YYYY-WX'
-
-        enrollmentCounts[weekKey] = (enrollmentCounts[weekKey] || 0) + 1; // Increment count for the week
-      });
-
-      // Convert the counts to an array for the chart
-      const formattedEnrollmentData = Object.entries(enrollmentCounts).map(
-        ([week, users]) => ({
-          week,
-          users,
-        })
-      );
-
-      console.log("Formatted Enrollment Data:", formattedEnrollmentData); // Debugging line
-      setEnrollmentData(formattedEnrollmentData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    }
-  }, []);
-
   useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch total users
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        setTotalUsers(usersSnapshot.size);
+
+        // Fetch total courses
+        const coursesSnapshot = await getDocs(collection(db, "courses"));
+        setTotalCourses(coursesSnapshot.size);
+
+        // Fetch total instructors
+        const instructorsSnapshot = await getDocs(collection(db, "users"));
+        const instructorsData = instructorsSnapshot.docs.filter(
+          (doc) => doc.data().role === "instructor"
+        );
+        setTotalInstructors(instructorsData.length);
+
+        // Fetch course distribution data
+        const courseCategories: Record<string, number> = {};
+        coursesSnapshot.docs.forEach((doc) => {
+          const category = doc.data().category;
+          if (category) {
+            const capitalizedCategory =
+              category.charAt(0).toUpperCase() + category.slice(1);
+            courseCategories[capitalizedCategory] =
+              (courseCategories[capitalizedCategory] || 0) + 1;
+          }
+        });
+        setCourseDistributionData(
+          Object.entries(courseCategories).map(([name, value]) => ({
+            name,
+            value,
+          }))
+        );
+
+        // Prepare enrollment data based on createdAt timestamp for all users
+        const enrollmentCounts: Record<string, number> = {}; // To hold counts by week
+        usersSnapshot.docs.forEach((doc) => {
+          const userData = doc.data();
+          let createdAt: Date;
+
+          // Check if createdAt is a Firestore timestamp
+          if (userData.createdAt instanceof Timestamp) {
+            createdAt = userData.createdAt.toDate(); // Convert Firestore timestamp to Date
+          } else if (typeof userData.createdAt === "string") {
+            createdAt = new Date(userData.createdAt); // Convert string to Date
+          } else if (typeof userData.createdAt === "number") {
+            createdAt = new Date(userData.createdAt); // Convert Unix timestamp to Date
+          } else {
+            console.warn(
+              `Unexpected createdAt type for user ${doc.id}:`,
+              userData.createdAt
+            );
+            return; // Skip this user if createdAt is not valid
+          }
+
+          const year = createdAt.getFullYear();
+          const week = getWeekNumber(createdAt); // Now this function is defined
+          const weekKey = `${year}-W${week}`; // Format: 'YYYY-WX'
+
+          enrollmentCounts[weekKey] = (enrollmentCounts[weekKey] || 0) + 1; // Increment count for the week
+        });
+
+        // Convert the counts to an array for the chart
+        const formattedEnrollmentData = Object.entries(enrollmentCounts).map(
+          ([week, users]) => ({
+            week,
+            users,
+          })
+        );
+
+        console.log("Formatted Enrollment Data:", formattedEnrollmentData); // Debugging line
+        setEnrollmentData(formattedEnrollmentData);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchData();
-  }, [fetchData]);
+  }, []);
 
   if (!authUser) {
     return <Loader />;
@@ -188,24 +193,34 @@ export function Analytics() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
           <div className="bg-indigo-600 text-white p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
-            <h3 className="text-lg font-semibold mb-2">Total Users</h3>{" "}
-            {/* Updated title */}
-            <p className="text-4xl font-bold mb-2">{totalUsers}</p>{" "}
-            {/* Updated to totalUsers */}
+            <h3 className="text-lg font-semibold mb-2">Total Users</h3>
+            {loading ? (
+              <Loader />
+            ) : (
+              <p className="text-4xl font-bold mb-2">{totalUsers}</p>
+            )}
             <div className="flex items-center text-indigo-200">
               <span>Users</span>
             </div>
           </div>
           <div className="bg-green-600 text-white p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
             <h3 className="text-lg font-semibold mb-2">Total Courses</h3>
-            <p className="text-4xl font-bold mb-2">{totalCourses}</p>
+            {loading ? (
+              <Loader />
+            ) : (
+              <p className="text-4xl font-bold mb-2">{totalCourses}</p>
+            )}
             <div className="flex items-center text-green-200">
               <span>Courses</span>
             </div>
           </div>
           <div className="bg-purple-600 text-white p-6 rounded-lg shadow-lg transform transition-transform hover:scale-105">
             <h3 className="text-lg font-semibold mb-2">Total Instructors</h3>
-            <p className="text-4xl font-bold mb-2">{totalInstructors}</p>
+            {loading ? (
+              <Loader />
+            ) : (
+              <p className="text-4xl font-bold mb-2">{totalInstructors}</p>
+            )}
             <div className="flex items-center text-purple-200">
               <span>Instructors</span>
             </div>

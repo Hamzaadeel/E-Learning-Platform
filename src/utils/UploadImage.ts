@@ -1,30 +1,29 @@
 // src/utils/uploadImage.ts
-import axios from "axios";
+import axios, { AxiosError } from "axios";
 
-const uploadImage = async (
-  image: string | File,
-  uploadPreset: string
-): Promise<string> => {
+const CLOUDINARY_URL = "https://api.cloudinary.com/v1_1/dncgoid7y/image/upload"; // Replace with your Cloudinary URL
+const CLOUDINARY_UPLOAD_PRESET = "ml_default"; // Ensure this is set correctly
+
+const uploadImage = async (file: File, folder: string): Promise<string> => {
   const formData = new FormData();
-
-  // Check if the image is a URL or a File object
-  if (typeof image === "string") {
-    formData.append("file", image); // For URLs, Cloudinary will handle it
-  } else {
-    formData.append("file", image); // For local files
-  }
-
-  formData.append("upload_preset", uploadPreset); // Use your unsigned upload preset
+  formData.append("file", file); // Append the file to the form data
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET); // Append the upload preset
+  formData.append("folder", folder); // Optional: specify the folder
 
   try {
-    const response = await axios.post(
-      `https://api.cloudinary.com/v1_1/dncgoid7y/image/upload`, // Replace with your Cloudinary URL
-      formData
-    );
-    return response.data.secure_url; // Return the URL of the uploaded image
+    const response = await axios.post(CLOUDINARY_URL, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data", // Set the content type
+      },
+    });
+    return response.data.secure_url; // Return the secure URL of the uploaded image
   } catch (error) {
-    console.error("Error uploading image:", error);
-    throw error; // Rethrow the error for handling in the calling function
+    const axiosError = error as AxiosError; // Type assertion
+    console.error(
+      "Error uploading image to Cloudinary:",
+      axiosError.response?.data
+    ); // Log the error response
+    throw new Error("Image upload failed");
   }
 };
 

@@ -1,8 +1,6 @@
-import { ReactNode } from "react";
-
 export interface Course {
-  durationType: ReactNode;
-  durationValue: ReactNode;
+  durationType: string;
+  durationValue: number;
   id: string;
   title: string;
   description: string;

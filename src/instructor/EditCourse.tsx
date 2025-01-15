@@ -30,7 +30,7 @@ interface CourseFormData extends Omit<Course, "id" | "rating" | "students"> {
   content: CourseContent[];
 }
 
-export function CourseDefinition({
+export function EditCourse({
   courseId,
   isOpen,
   onClose,
@@ -446,6 +446,7 @@ export function CourseDefinition({
                   </label>
                   <select
                     value={formData.instructor}
+                    disabled
                     onChange={(e) =>
                       setFormData({
                         ...formData,

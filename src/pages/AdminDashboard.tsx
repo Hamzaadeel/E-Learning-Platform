@@ -29,6 +29,8 @@ export function AdminDashboard() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true); // Set loading to true before fetching data
+
         // Fetch total users
         const usersRef = collection(db, "users");
         const usersSnapshot = await getDocs(usersRef);
@@ -54,7 +56,7 @@ export function AdminDashboard() {
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
-        setLoading(false);
+        setLoading(false); // Set loading to false after fetching data
       }
     };
 
@@ -69,7 +71,10 @@ export function AdminDashboard() {
       coursesSnapshot.docs.forEach((doc) => {
         const category = doc.data().category;
         if (category) {
-          courseCategories[category] = (courseCategories[category] || 0) + 1;
+          const capitalizedCategory =
+            category.charAt(0).toUpperCase() + category.slice(1); // Capitalize first letter
+          courseCategories[capitalizedCategory] =
+            (courseCategories[capitalizedCategory] || 0) + 1;
         }
       });
       setCourseDistributionData(
@@ -115,7 +120,11 @@ export function AdminDashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-500">Total Users</p>
-              <p className="text-xl font-semibold">{totalUsers}</p>
+              {loading ? (
+                <Loader />
+              ) : (
+                <p className="text-xl font-semibold">{totalUsers}</p>
+              )}
             </div>
           </div>
         </div>
@@ -127,7 +136,11 @@ export function AdminDashboard() {
             </div>
             <div className="ml-4">
               <p className="text-sm text-gray-500">Total Courses</p>
-              <p className="text-xl font-semibold">{totalCourses}</p>
+              {loading ? (
+                <Loader />
+              ) : (
+                <p className="text-xl font-semibold">{totalCourses}</p>
+              )}
             </div>
           </div>
         </div>

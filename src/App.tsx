@@ -17,6 +17,10 @@ import { Assignments } from "./learner/Assignments";
 import { Progress } from "./learner/Progress";
 import { Settings as LearnerSettings } from "./learner/Settings";
 import { LearnerCourseView } from "./learner/LearnerCourseView";
+import { InstructorSettings } from "./instructor/Settings";
+import { MyCourses as InstructorMyCourses } from "./instructor/MyCourses";
+import { Learners } from "./instructor/Learners";
+import { Assignments as InstructorAssignments } from "./instructor/Assignments";
 
 function App() {
   return (
@@ -95,7 +99,39 @@ function App() {
               </ProtectedRoute>
             }
           />
-
+          {/* Instructor routes */}
+          <Route
+            path="/instructor/settings"
+            element={
+              <ProtectedRoute allowedRoles={["instructor"]}>
+                <InstructorSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instructor/courses"
+            element={
+              <ProtectedRoute allowedRoles={["instructor"]}>
+                <InstructorMyCourses />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instructor/learners"
+            element={
+              <ProtectedRoute allowedRoles={["instructor"]}>
+                <Learners />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/instructor/assignments"
+            element={
+              <ProtectedRoute allowedRoles={["instructor"]}>
+                <InstructorAssignments />
+              </ProtectedRoute>
+            }
+          />
           {/* Learner routes */}
           <Route
             path="/learner/courses"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
@@ -95,12 +95,12 @@ export default function Login() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              <a
-                href="/register"
+              <Link
+                to="/register"
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
                 Don't have an account? Sign up
-              </a>
+              </Link>
             </div>
           </div>
 

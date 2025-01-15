@@ -249,6 +249,9 @@ export function Courses() {
             <option value="data-science">Data Science</option>
             <option value="design">Design</option>
             <option value="business">Business</option>
+            <option value="marketing">Marketing</option>
+            <option value="ai">AI & Machine Learning</option>
+            <option value="devops">DevOps</option>
           </select>
 
           {/* Updated Sort Dropdown */}

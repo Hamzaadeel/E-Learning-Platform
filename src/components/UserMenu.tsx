@@ -9,7 +9,6 @@ import {
   BarChart,
   Settings,
   Video,
-  DollarSign,
   FileText,
   LogOut,
 } from "lucide-react"; // Import icons
@@ -45,9 +44,8 @@ const UserMenu = () => {
   const instructorNavigation = [
     { icon: Home, label: "Dashboard", path: "/instructor-dashboard" },
     { icon: Video, label: "My Courses", path: "/instructor/courses" },
-    { icon: Users, label: "Students", path: "/instructor/students" },
+    { icon: Users, label: "Learners", path: "/instructor/learners" },
     { icon: FileText, label: "Assignments", path: "/instructor/assignments" },
-    { icon: DollarSign, label: "Earnings", path: "/instructor/earnings" },
     { icon: Settings, label: "Settings", path: "/instructor/settings" },
   ];
 
@@ -84,7 +82,8 @@ const UserMenu = () => {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-12 h-12 absolute top-0 right-0 py-2 px-6 bg-sky-900 rounded-full text-white hover:bg-sky-800"
+        className="flex items-center justify-center w-12 h-12 absolute top-0 right-0 py-2 px-6 bg-sky-900 rounded-full text-white hover:bg-sky-800 focus:outline-none"
+        style={{ borderRadius: "50%" }}
       >
         {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : "U"}
       </button>

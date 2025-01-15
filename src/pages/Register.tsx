@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 type UserRole = "admin" | "learner" | "instructor";
@@ -70,7 +70,14 @@ export default function Register() {
       // Navigation will be handled by the useEffect hook above
     } catch (err) {
       if (err instanceof Error) {
-        setError(err.message);
+        // Check for specific Firebase error code
+        if (err.message.includes("email-already-in-use")) {
+          setError(
+            "Entered email already has an account. Click on Sign In instead."
+          );
+        } else {
+          setError(err.message);
+        }
       } else {
         setError("Failed to create an account");
       }
@@ -159,7 +166,7 @@ export default function Register() {
               >
                 <option value="learner">Learner</option>
                 <option value="instructor">Instructor</option>
-                <option value="admin">Admin</option>
+               
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
                 <svg
@@ -175,12 +182,12 @@ export default function Register() {
 
           <div className="flex items-center justify-between">
             <div className="text-sm">
-              <button
-                onClick={() => navigate("/login")}
+              <Link
+                to="/login"
                 className="font-medium text-indigo-600 hover:text-indigo-500"
               >
                 Already have an account? Sign in
-              </button>
+              </Link>
             </div>
           </div>
 

@@ -134,23 +134,7 @@ function UserModal({
             />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Role*
-            </label>
-            <select
-              value={formData.role}
-              onChange={(e) =>
-                setFormData({ ...formData, role: e.target.value })
-              }
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              required
-            >
-              <option value="admin">Admin</option>
-              <option value="instructor">Instructor</option>
-              <option value="learner">Learner</option>
-            </select>
-          </div>
+          {/* Role selection removed */}
 
           <div className="flex justify-end space-x-4 mt-6">
             <button
@@ -248,7 +232,9 @@ export default function Users() {
     name: authUser.displayName || "Admin",
     email: authUser.email || "",
     role: "admin",
-    avatar: authUser.photoURL || "https://ui-avatars.com/api/?name=Admin",
+    avatar:
+      authUser.photoURL ||
+      `https://ui-avatars.com/api/?name=${authUser.displayName || "User"}`,
   };
 
   const filteredUsers = users
@@ -461,7 +447,21 @@ export default function Users() {
   };
 
   return (
-    <DashboardLayout user={user}>
+    <DashboardLayout
+      user={
+        user || {
+          id: authUser.uid,
+          name: authUser.displayName || "User",
+          email: authUser.email || "",
+          role: "admin",
+          avatar:
+            authUser.photoURL ||
+            `https://ui-avatars.com/api/?name=${
+              authUser.displayName || "User"
+            }`,
+        }
+      }
+    >
       {content}
 
       {/* Success Alert */}

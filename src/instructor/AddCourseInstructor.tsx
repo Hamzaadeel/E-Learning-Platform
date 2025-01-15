@@ -3,6 +3,7 @@ import { collection, addDoc, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Plus, Trash2, X } from "lucide-react";
 import uploadImage from "../utils/UploadImage"; // Import the upload function
+import { User } from "firebase/auth";
 
 interface CourseContent {
   title: string;
@@ -18,9 +19,16 @@ interface OutlineItem {
 interface AddCourseProps {
   isOpen: boolean;
   onClose: () => void;
+  authUser: User | null;
+  onCourseAdded: () => void;
 }
 
-export function AddCourse({ isOpen, onClose }: AddCourseProps) {
+export function AddCourseInstructor({
+  isOpen,
+  onClose,
+  authUser,
+  onCourseAdded,
+}: AddCourseProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [instructors, setInstructors] = useState<
@@ -36,14 +44,12 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
     durationType: "",
     durationValue: 0,
     imageUrl: "",
-    instructor: "",
+    imageUploadMethod: "url",
     outlineDescription: "",
     outlineItems: [] as OutlineItem[],
     content: [] as CourseContent[],
+    instructor: authUser?.displayName || "Instructor",
   });
-  const [imageUploadMethod, setImageUploadMethod] = useState<"url" | "file">(
-    "url"
-  );
   const [localImage, setLocalImage] = useState<File | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
   const [alertType, setAlertType] = useState<"success" | "error" | null>(null);
@@ -104,13 +110,14 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
         durationType: "",
         durationValue: 0,
         imageUrl: "",
-        instructor: "",
+        imageUploadMethod: "url",
         outlineDescription: "",
         outlineItems: [],
         content: [],
+        instructor: authUser?.displayName || "Instructor",
       });
     }
-  }, [isOpen]);
+  }, [authUser?.displayName, isOpen]);
 
   const handleAddOutlineItem = () => {
     setFormData({
@@ -189,7 +196,7 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
   const handleImageUpload = async () => {
     let uploadedImageUrl = "";
 
-    if (imageUploadMethod === "url") {
+    if (formData.imageUploadMethod === "url") {
       uploadedImageUrl = formData.imageUrl; // Use the URL directly
     } else if (localImage) {
       uploadedImageUrl = await uploadImage(localImage, "ml_default"); // Upload the file
@@ -204,15 +211,18 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
 
     try {
       setSaving(true);
-      const uploadedImageUrl = await handleImageUpload();
+      const uploadedImageUrl = await handleImageUpload(); // Call handleImageUpload to get the uploaded image URL
+
       await addDoc(collection(db, "courses"), {
         ...formData,
         imageUrl: uploadedImageUrl,
+        instructor: authUser?.displayName || "Instructor", // Ensure instructor is set
         createdAt: new Date().toISOString(),
       });
       setAlertMessage("Course added successfully!");
       setAlertType("success");
-      onClose();
+      onCourseAdded(); // Call the callback to refresh courses
+      onClose(); // Close the modal
     } catch (error) {
       console.error("Error saving course:", error);
       setError("Failed to save course");
@@ -319,7 +329,10 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
                 </label>
                 <select
                   onChange={(e) =>
-                    setImageUploadMethod(e.target.value as "url" | "file")
+                    setFormData({
+                      ...formData,
+                      imageUploadMethod: e.target.value,
+                    })
                   }
                   className="w-full border border-gray-300 rounded-lg p-2 mb-2"
                 >
@@ -327,7 +340,7 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
                   <option value="file">Local Device</option>
                 </select>
               </div>
-              {imageUploadMethod === "url" ? (
+              {formData.imageUploadMethod === "url" ? (
                 <input
                   type="url"
                   value={formData.imageUrl}
@@ -371,9 +384,6 @@ export function AddCourse({ isOpen, onClose }: AddCourseProps) {
                   <option value="data-science">Data Science</option>
                   <option value="design">Design</option>
                   <option value="business">Business</option>
-                  <option value="marketing">Marketing</option>
-                  <option value="ai">AI & Machine Learning</option>
-                  <option value="devops">DevOps</option>
                 </select>
               </div>
               <div>

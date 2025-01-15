@@ -9,7 +9,6 @@ import {
   Video,
   GraduationCap,
   FileText,
-  DollarSign,
   LogOut,
 } from "lucide-react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -47,9 +46,8 @@ const Sidebar: React.FC<SidebarProps> = ({ user, className }) => {
     instructor: [
       { icon: Home, label: "Dashboard", path: "/instructor-dashboard" },
       { icon: Video, label: "My Courses", path: "/instructor/courses" },
-      { icon: Users, label: "Students", path: "/instructor/students" },
+      { icon: Users, label: "Learners", path: "/instructor/learners" },
       { icon: FileText, label: "Assignments", path: "/instructor/assignments" },
-      { icon: DollarSign, label: "Earnings", path: "/instructor/earnings" },
       { icon: Settings, label: "Settings", path: "/instructor/settings" },
     ],
     admin: adminNavigation,
@@ -120,14 +118,9 @@ const Sidebar: React.FC<SidebarProps> = ({ user, className }) => {
             }
             className="flex items-center space-x-3 mb-6 w-full p-2 rounded-lg hover:bg-gray-50 transition-colors"
           >
-            <img
-              src={
-                user.avatar ||
-                "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?fit=facearea&facepad=2&w=256&h=256&q=80"
-              }
-              alt={user.name}
-              className="h-10 w-10 rounded-full"
-            />
+            <div className="h-10 w-10 rounded-full bg-sky-900 text-white flex items-center justify-center">
+              {user.name ? user.name.charAt(0).toUpperCase() : "U"}
+            </div>
             <div className="text-left">
               <p className="font-medium text-gray-800">{user.name}</p>
               <p className="text-sm text-gray-500 capitalize">{user.role}</p>
