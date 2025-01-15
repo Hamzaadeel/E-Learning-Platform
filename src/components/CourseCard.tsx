@@ -63,6 +63,13 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
             <p className="text-sm text-gray-600">
               Duration: {course.durationValue} {course.durationType}
             </p>
+            <span className="text-yellow-500">
+              Rating:{" "}
+              {course.averageRating
+                ? course.averageRating.toFixed(1)
+                : "Unrated"}{" "}
+              ⭐
+            </span>
           </div>
           <div className="mt-auto pt-4 flex justify-between items-center border-t border-gray-100">
             <span className="text-lg font-bold text-gray-900">

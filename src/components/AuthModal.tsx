@@ -4,6 +4,8 @@ import { useNavigate } from "react-router-dom";
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSignUp: () => void;
+  onLogin: () => void;
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {

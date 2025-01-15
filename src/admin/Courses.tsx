@@ -10,10 +10,9 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { Course } from "../data/courses";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
-import { User } from "../types";
+import { User, Course } from "../types";
 import { Loader } from "../components/Loader";
 import debounce from "lodash/debounce";
 import { CourseDefinition } from "./CourseDefinition";
@@ -313,6 +312,13 @@ export function Courses() {
                     </span>
                     <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
                       {course.level}
+                    </span>
+                    <span className="text-yellow-500">
+                      Rating:{" "}
+                      {course.averageRating
+                        ? course.averageRating.toFixed(1)
+                        : "Unrated"}{" "}
+                      ⭐
                     </span>
                   </div>
                   <div className="mt-auto flex justify-between items-center">

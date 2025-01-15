@@ -12,6 +12,8 @@ export interface Course {
   outlineDescription?: string;
   outlineItems?: { title: string; topics: string[] }[];
   content?: { title: string; videoUrl: string; description: string }[];
+  averageRating?: number;
+  rating?: number;
 }
 
 export interface User {

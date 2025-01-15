@@ -153,6 +153,13 @@ export function MyCourses() {
                       <span className="text-sm text-gray-500">
                         {course.durationValue} {course.durationType}
                       </span>
+                      <span className="text-yellow-500">
+                        Rating:{" "}
+                        {course.averageRating
+                          ? course.averageRating.toFixed(1)
+                          : "Unrated"}{" "}
+                        ⭐
+                      </span>
                     </div>
                     <div className="flex items-center">
                       <button

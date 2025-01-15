@@ -17,10 +17,13 @@ import { useNavigate } from "react-router-dom";
 import { CourseDetails } from "./CourseDetailsLearner";
 import { useAuth } from "../contexts/AuthContext";
 import SuccessModal from "./SuccessModal";
+import Rating from "../components/RatingModal";
 
 interface EnrolledCourse extends Course {
   enrolledAt: string;
   progress: number;
+  rating?: number;
+  averageRating?: number;
 }
 
 // Define a function to get custom messages
@@ -57,6 +60,8 @@ export function MyCourses() {
   );
   const [droppingMessage, setDroppingMessage] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const fetchUserData = useCallback(async () => {
     if (!authUser?.uid) return;
@@ -327,6 +332,58 @@ export function MyCourses() {
     setDroppingMessage(null);
   };
 
+  const handleRateCourse = async (courseId: string, rating: number) => {
+    console.log(`Rated course ${courseId} with ${rating} stars`);
+
+    if (!authUser?.uid) return;
+
+    try {
+      const userRef = doc(db, "users", authUser.uid);
+      const courseRef = doc(db, "courses", courseId);
+
+      // Update the course rating in the user's enrolled courses
+      await updateDoc(userRef, {
+        [`courseRatings.${courseId}`]: rating,
+      });
+
+      // Fetch the current course data to update ratings
+      const courseDoc = await getDoc(courseRef);
+      if (courseDoc.exists()) {
+        const courseData = courseDoc.data();
+        const currentRatings = courseData.ratings || [];
+
+        // Add the new rating to the ratings array
+        const updatedRatings = [...currentRatings, rating];
+
+        // Calculate the new average rating
+        const newAverageRating =
+          updatedRatings.reduce((sum, r) => sum + r, 0) / updatedRatings.length;
+
+        // Update the course document with the new ratings and average rating
+        await updateDoc(courseRef, {
+          ratings: updatedRatings,
+          averageRating: newAverageRating,
+        });
+      }
+
+      // Set success message
+      setSuccessMessage("Thank you for your rating!");
+    } catch (error) {
+      console.error("Error saving rating:", error);
+    }
+  };
+
+  // Clear success message after 5 seconds
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000); // 5000 milliseconds = 5 seconds
+
+      return () => clearTimeout(timer); // Cleanup the timer on unmount
+    }
+  }, [successMessage]);
+
   if (!authUser) {
     return <Loader />;
   }
@@ -361,6 +418,13 @@ export function MyCourses() {
       }}
     >
       <div className="p-6 relative">
+        {/* Success Message */}
+        {successMessage && (
+          <div className="absolute top-4 right-4 bg-green-500 text-white p-3 rounded shadow-md">
+            {successMessage}
+          </div>
+        )}
+
         <h1 className="text-2xl font-bold text-gray-900 mb-6">My Courses</h1>
 
         {/* Enrolled Courses */}
@@ -391,7 +455,7 @@ export function MyCourses() {
               You haven't enrolled in any courses yet.
             </p>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
               {[...enrolledCourses]
                 .sort((a, b) => {
                   const order = sortOrder === "asc" ? 1 : -1;
@@ -430,6 +494,14 @@ export function MyCourses() {
                         <span>
                           {course.durationValue} {course.durationType}
                         </span>
+                        <span>•</span>
+                        <span className="text-yellow-500">
+                          Rating:{" "}
+                          {course.averageRating
+                            ? course.averageRating.toFixed(1)
+                            : "Unrated"}{" "}
+                          ⭐
+                        </span>
                       </div>
                       <div className="mb-4">
                         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -449,6 +521,16 @@ export function MyCourses() {
                             {new Date(course.enrolledAt).toLocaleDateString()}
                           </span>
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedCourseId(course.id);
+                                setIsRatingModalOpen(true);
+                              }}
+                              className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                            >
+                              Rate
+                            </button>
                             <button
                               onClick={() =>
                                 navigate(`/learner/course/${course.id}`)
@@ -568,7 +650,7 @@ export function MyCourses() {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6">
             {notEnrolledCourses.map((course) => (
               <div
                 key={course.id}
@@ -601,6 +683,13 @@ export function MyCourses() {
                     <span>•</span>
                     <span>
                       {course.durationValue} {course.durationType}
+                    </span>
+                    <span className="text-yellow-500">
+                      Rating:{" "}
+                      {course.averageRating
+                        ? course.averageRating.toFixed(1)
+                        : "Unrated"}{" "}
+                      ⭐
                     </span>
                   </div>
                   <div className="mt-auto flex justify-between items-center">
@@ -672,6 +761,14 @@ export function MyCourses() {
           {successMessage}
         </div>
       )}
+
+      {/* Render the Rating Modal */}
+      <Rating
+        isOpen={isRatingModalOpen}
+        onClose={() => setIsRatingModalOpen(false)}
+        courseId={selectedCourseId || ""}
+        onRate={handleRateCourse}
+      />
     </DashboardLayout>
   );
 }
