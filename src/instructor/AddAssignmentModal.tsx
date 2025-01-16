@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 
 interface Option {
@@ -41,6 +41,8 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
   setNewAssignment,
   selectedCourse,
 }) => {
+  const [adding, setAdding] = useState(false);
+
   if (!isOpen) return null; // Don't render if not open
 
   const handleModalClick = (e: React.MouseEvent) => {
@@ -257,10 +259,12 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
           <button
             onClick={() => {
               onAddAssignment(selectedCourse);
+              setAdding(true); // Set adding state to true when clicked
             }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
+            disabled={newAssignment.questions.length === 0} // Disable if no questions
           >
-            Add Assignment
+            {adding ? "Adding..." : "Add Assignment"}
           </button>
         </div>
       </div>

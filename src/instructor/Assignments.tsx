@@ -22,6 +22,7 @@ interface Assignment {
   id: string;
   title: string;
   questions: {
+    hint: string;
     questionText: string;
     options: { text: string; isCorrect: boolean }[];
   }[];
@@ -296,7 +297,14 @@ export function Assignments() {
           <EditAssignmentModal
             isOpen={showEditModal}
             onClose={handleCloseEditModal}
-            assignment={editAssignment} // Pass the assignment to edit
+            assignment={{
+              ...editAssignment,
+              questions: editAssignment.questions.map((q) => ({
+                questionText: q.questionText,
+                hint: q.hint || "", // Provide a default value if hint is missing
+                options: q.options,
+              })),
+            }} // Ensure the assignment structure is correct
             onUpdateAssignment={(updatedAssignment) => {
               // Update the assignment in the state
               const updatedAssignments = assignments.map((assignment) =>

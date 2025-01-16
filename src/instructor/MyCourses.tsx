@@ -41,9 +41,11 @@ export function MyCourses() {
   const fetchAssignedCourses = useCallback(async () => {
     setLoading(true);
     try {
-      const hardcodedUserName = "Instructor1"; // Replace with a known instructor name
       const coursesRef = collection(db, "courses");
-      const q = query(coursesRef, where("instructor", "==", hardcodedUserName));
+      const q = query(
+        coursesRef,
+        where("instructor", "==", authUser?.displayName || authUser?.name)
+      );
       const querySnapshot = await getDocs(q);
 
       const instructorAssignedCourses = querySnapshot.docs.map((doc) => ({
@@ -58,7 +60,7 @@ export function MyCourses() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
     fetchUserData();
@@ -116,7 +118,7 @@ export function MyCourses() {
         {loading ? (
           <Loader />
         ) : assignedCourses.length === 0 ? ( // Check if there are no assigned courses
-          <p>No assigned courses available.</p>
+          <p>No courses yet.</p> // Message when no courses are assigned
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {assignedCourses.map((course) => (
@@ -201,9 +203,7 @@ export function MyCourses() {
                   fetchAssignedCourses(); // Refresh the assigned courses after adding a new course
                   setIsAddModalOpen(false); // Close the modal
                 }}
-                refreshMyCourses={function (): void {
-                  throw new Error("Function not implemented.");
-                }}
+                refreshMyCourses={fetchAssignedCourses} // Pass the refreshMyCourses prop
               />
               <button
                 onClick={() => setIsAddModalOpen(false)} // Close Add modal
