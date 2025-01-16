@@ -42,12 +42,13 @@ export function Assignments() {
     questions: {
       questionText: string;
       options: { text: string; isCorrect: boolean }[];
+      hint: string;
     }[];
     hints: string[];
     dueDate: string;
   }>({
     title: "",
-    questions: [],
+    questions: [{ questionText: "", options: [], hint: "" }],
     hints: [""],
     dueDate: "",
   });
@@ -182,7 +183,7 @@ export function Assignments() {
         <h1 className="text-2xl font-bold mb-4">Assignments</h1>
 
         <label className="block mb-2">
-          Select Course:
+          Please Select a Course to view the assignments:
           <select
             value={selectedCourseId || ""}
             onChange={(e) => {
@@ -286,6 +287,7 @@ export function Assignments() {
             onAddAssignment={handleAddAssignment}
             newAssignment={newAssignment}
             setNewAssignment={setNewAssignment}
+            selectedCourse={""}
           />
         )}
 

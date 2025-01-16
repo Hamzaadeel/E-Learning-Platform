@@ -196,10 +196,13 @@ export function MyCourses() {
               <AddCourseInstructor
                 onClose={() => setIsAddModalOpen(false)} // Close Add modal
                 isOpen={isAddModalOpen}
-                authUser={authUser}
+                authUser={{ ...authUser, name: authUser.name || "Instructor" }}
                 onCourseAdded={() => {
                   fetchAssignedCourses(); // Refresh the assigned courses after adding a new course
                   setIsAddModalOpen(false); // Close the modal
+                }}
+                refreshMyCourses={function (): void {
+                  throw new Error("Function not implemented.");
                 }}
               />
               <button

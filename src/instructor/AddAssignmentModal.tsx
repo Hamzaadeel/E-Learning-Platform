@@ -9,12 +9,13 @@ interface Option {
 interface Question {
   questionText: string;
   options: Option[];
+  hint: string;
 }
 
 interface AddAssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddAssignment: () => void;
+  onAddAssignment: (courseId: string) => void;
   newAssignment: {
     title: string;
     questions: Question[];
@@ -29,6 +30,7 @@ interface AddAssignmentModalProps {
       dueDate: string;
     }>
   >;
+  selectedCourse: string;
 }
 
 const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
@@ -37,6 +39,7 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
   onAddAssignment,
   newAssignment,
   setNewAssignment,
+  selectedCourse,
 }) => {
   if (!isOpen) return null; // Don't render if not open
 
@@ -48,6 +51,7 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
     const newQuestion: Question = {
       questionText: "",
       options: [{ text: "", isCorrect: false }],
+      hint: "",
     };
     setNewAssignment({
       ...newAssignment,
@@ -104,6 +108,12 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
     setNewAssignment({ ...newAssignment, questions: updatedQuestions });
   };
 
+  const handleHintChange = (index: number, value: string) => {
+    const updatedQuestions = [...newAssignment.questions];
+    updatedQuestions[index].hint = value;
+    setNewAssignment({ ...newAssignment, questions: updatedQuestions });
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
@@ -139,6 +149,15 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
                 placeholder={`Question ${questionIndex + 1}`}
                 required
+              />
+              <input
+                type="text"
+                value={question.hint}
+                onChange={(e) =>
+                  handleHintChange(questionIndex, e.target.value)
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+                placeholder={`Hint for Question ${questionIndex + 1}`}
               />
               {question.options.map((option, optionIndex) => (
                 <div
@@ -236,7 +255,9 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
             Cancel
           </button>
           <button
-            onClick={onAddAssignment}
+            onClick={() => {
+              onAddAssignment(selectedCourse);
+            }}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
           >
             Add Assignment

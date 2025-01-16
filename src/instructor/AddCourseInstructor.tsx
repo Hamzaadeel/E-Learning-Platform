@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { collection, addDoc, getDocs } from "firebase/firestore";
+import { collection, addDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { Plus, Trash2, X } from "lucide-react";
 import uploadImage from "../utils/UploadImage"; // Import the upload function
-import { User } from "firebase/auth";
+import { User as FirebaseUser } from "firebase/auth";
+
+interface CustomUser extends FirebaseUser {
+  name: string; // Add the name property
+}
 
 interface CourseContent {
   title: string;
@@ -19,8 +23,9 @@ interface OutlineItem {
 interface AddCourseProps {
   isOpen: boolean;
   onClose: () => void;
-  authUser: User | null;
+  authUser: CustomUser | null;
   onCourseAdded: () => void;
+  refreshMyCourses: () => void;
 }
 
 export function AddCourseInstructor({
@@ -28,12 +33,10 @@ export function AddCourseInstructor({
   onClose,
   authUser,
   onCourseAdded,
+  refreshMyCourses,
 }: AddCourseProps) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [instructors, setInstructors] = useState<
-    { id: string; name: string }[]
-  >([]);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -48,7 +51,7 @@ export function AddCourseInstructor({
     outlineDescription: "",
     outlineItems: [] as OutlineItem[],
     content: [] as CourseContent[],
-    instructor: authUser?.displayName || "Instructor",
+    instructor: authUser?.name || "Instructor",
   });
   const [localImage, setLocalImage] = useState<File | null>(null);
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
@@ -80,26 +83,8 @@ export function AddCourseInstructor({
   }, [isOpen, handleClickOutside]);
 
   useEffect(() => {
-    const fetchInstructors = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "users"));
-        const instructorsList = querySnapshot.docs
-          .filter((doc) => doc.data().role === "instructor")
-          .map((doc) => ({
-            id: doc.id,
-            name: doc.data().name,
-          }));
-        setInstructors(instructorsList);
-      } catch (error) {
-        console.error("Error fetching instructors:", error);
-      }
-    };
-
-    fetchInstructors();
-  }, []);
-
-  useEffect(() => {
-    if (isOpen) {
+    if (isOpen && authUser) {
+      console.log("Current authUser.name:", (authUser as CustomUser).name);
       setFormData({
         title: "",
         description: "",
@@ -114,10 +99,10 @@ export function AddCourseInstructor({
         outlineDescription: "",
         outlineItems: [],
         content: [],
-        instructor: authUser?.displayName || "Instructor",
+        instructor: (authUser as CustomUser).name || "Instructor",
       });
     }
-  }, [authUser?.displayName, isOpen]);
+  }, [authUser, isOpen]);
 
   const handleAddOutlineItem = () => {
     setFormData({
@@ -209,20 +194,39 @@ export function AddCourseInstructor({
     e.preventDefault();
     setError("");
 
+    // New validation logic
+    if (
+      !formData.title ||
+      !formData.category ||
+      !formData.level ||
+      !formData.durationValue
+    ) {
+      setError(
+        "Please fill in all required fields: Title, Category, Level, and Duration."
+      );
+      return; // Prevent submission if validation fails
+    }
+
     try {
       setSaving(true);
       const uploadedImageUrl = await handleImageUpload(); // Call handleImageUpload to get the uploaded image URL
 
+      if (!authUser) {
+        setError("User is not authenticated."); // Handle the error as needed
+        return; // Prevent further execution
+      }
+
       await addDoc(collection(db, "courses"), {
         ...formData,
         imageUrl: uploadedImageUrl,
-        instructor: authUser?.displayName || "Instructor", // Ensure instructor is set
+        instructor: authUser.name || "Instructor", // Now safe to access
         createdAt: new Date().toISOString(),
       });
       setAlertMessage("Course added successfully!");
       setAlertType("success");
       onCourseAdded(); // Call the callback to refresh courses
       onClose(); // Close the modal
+      refreshMyCourses(); // Call this function to refresh the MyCourses tab
     } catch (error) {
       console.error("Error saving course:", error);
       setError("Failed to save course");
@@ -384,6 +388,9 @@ export function AddCourseInstructor({
                   <option value="data-science">Data Science</option>
                   <option value="design">Design</option>
                   <option value="business">Business</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="dev-ops">DevOps</option>
+                  <option value="ai">AI & Machine Learning</option>
                 </select>
               </div>
               <div>
@@ -445,24 +452,12 @@ export function AddCourseInstructor({
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Instructor
                 </label>
-                <select
+                <input
+                  type="text"
                   value={formData.instructor}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      instructor: e.target.value,
-                    })
-                  }
+                  readOnly
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  required
-                >
-                  <option value="">Select Instructor</option>
-                  {instructors.map((instructor) => (
-                    <option key={instructor.id} value={instructor.name}>
-                      {instructor.name}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             </div>
 

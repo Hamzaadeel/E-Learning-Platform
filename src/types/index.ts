@@ -9,4 +9,6 @@ export interface Course {
   durationType: string;
   instructor: string;
   averageRating?: number;
-} 
+}
+
+

@@ -9,6 +9,7 @@ interface Option {
 interface Question {
   questionText: string;
   options: Option[];
+  hint: string;
 }
 
 interface Assignment {
@@ -39,8 +40,23 @@ const EditAssignmentModal: React.FC<EditAssignmentModalProps> = ({
     setUpdatedAssignment(assignment);
   }, [assignment]);
 
-  const handleSave = () => {
-    onUpdateAssignment(updatedAssignment);
+  const handleAddQuestion = () => {
+    const newQuestion: Question = {
+      questionText: "",
+      options: [{ text: "", isCorrect: false }],
+      hint: "",
+    };
+    setUpdatedAssignment({
+      ...updatedAssignment,
+      questions: [...updatedAssignment.questions, newQuestion],
+    });
+  };
+
+  const handleRemoveQuestion = (index: number) => {
+    const updatedQuestions = updatedAssignment.questions.filter(
+      (_, i) => i !== index
+    );
+    setUpdatedAssignment({ ...updatedAssignment, questions: updatedQuestions });
   };
 
   const handleQuestionChange = (index: number, value: string) => {
@@ -85,6 +101,16 @@ const EditAssignmentModal: React.FC<EditAssignmentModalProps> = ({
     setUpdatedAssignment({ ...updatedAssignment, questions: updatedQuestions });
   };
 
+  const handleHintChange = (index: number, value: string) => {
+    const updatedQuestions = [...updatedAssignment.questions];
+    updatedQuestions[index].hint = value;
+    setUpdatedAssignment({ ...updatedAssignment, questions: updatedQuestions });
+  };
+
+  const handleSave = () => {
+    onUpdateAssignment(updatedAssignment);
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -113,68 +139,90 @@ const EditAssignmentModal: React.FC<EditAssignmentModalProps> = ({
 
         <div className="mt-4">
           <h3 className="text-lg font-medium">Questions</h3>
-          {Array.isArray(updatedAssignment.questions) &&
-            updatedAssignment.questions.map((question, questionIndex) => (
-              <div key={questionIndex} className="mb-4">
-                <input
-                  type="text"
-                  value={question.questionText}
-                  onChange={(e) =>
-                    handleQuestionChange(questionIndex, e.target.value)
-                  }
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
-                  placeholder={`Question ${questionIndex + 1}`}
-                  required
-                />
-                {Array.isArray(question.options) &&
-                  question.options.map((option, optionIndex) => (
-                    <div
-                      key={optionIndex}
-                      className="flex items-center space-x-2 mb-2"
-                    >
-                      <input
-                        type="text"
-                        value={option.text}
-                        onChange={(e) =>
-                          handleOptionChange(
-                            questionIndex,
-                            optionIndex,
-                            e.target.value
-                          )
-                        }
-                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
-                        placeholder={`Option ${optionIndex + 1}`}
-                        required
-                      />
-                      <input
-                        type="radio"
-                        checked={option.isCorrect}
-                        onChange={() =>
-                          handleCorrectOptionChange(questionIndex, optionIndex)
-                        }
-                      />
-                      <span className="text-sm">Correct</span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          handleRemoveOption(questionIndex, optionIndex)
-                        }
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-5 w-5" />
-                      </button>
-                    </div>
-                  ))}
-                <button
-                  type="button"
-                  onClick={() => handleAddOption(questionIndex)}
-                  className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center"
+          {updatedAssignment.questions.map((question, questionIndex) => (
+            <div key={questionIndex} className="mb-4">
+              <input
+                type="text"
+                value={question.questionText}
+                onChange={(e) =>
+                  handleQuestionChange(questionIndex, e.target.value)
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+                placeholder={`Question ${questionIndex + 1}`}
+                required
+              />
+              <input
+                type="text"
+                value={question.hint}
+                onChange={(e) =>
+                  handleHintChange(questionIndex, e.target.value)
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg mb-2"
+                placeholder={`Hint for Question ${questionIndex + 1}`}
+              />
+              {question.options.map((option, optionIndex) => (
+                <div
+                  key={optionIndex}
+                  className="flex items-center space-x-2 mb-2"
                 >
-                  <Plus className="h-4 w-4 mr-1" />
-                  Add Option
-                </button>
-              </div>
-            ))}
+                  <input
+                    type="text"
+                    value={option.text}
+                    onChange={(e) =>
+                      handleOptionChange(
+                        questionIndex,
+                        optionIndex,
+                        e.target.value
+                      )
+                    }
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg"
+                    placeholder={`Option ${optionIndex + 1}`}
+                    required
+                  />
+                  <input
+                    type="radio"
+                    checked={option.isCorrect}
+                    onChange={() =>
+                      handleCorrectOptionChange(questionIndex, optionIndex)
+                    }
+                  />
+                  <span className="text-sm">Correct</span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleRemoveOption(questionIndex, optionIndex)
+                    }
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="h-5 w-5" />
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={() => handleAddOption(questionIndex)}
+                className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center"
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Add Option
+              </button>
+              <button
+                type="button"
+                onClick={() => handleRemoveQuestion(questionIndex)}
+                className="text-red-600 hover:text-red-700 mt-2"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            onClick={handleAddQuestion}
+            className="text-sm text-indigo-600 hover:text-indigo-700 flex items-center"
+          >
+            <Plus className="h-4 w-4 mr-1" />
+            Add Question
+          </button>
         </div>
 
         <div className="mt-4">

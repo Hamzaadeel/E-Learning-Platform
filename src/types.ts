@@ -33,3 +33,21 @@ export interface EnrolledCourse extends Course {
   progress: number;
   lastAccessed: string;
 }
+export interface Assignment {
+  id: string;
+  title: string;
+  questions: Question[];
+  hints: string[];
+  dueDate: string;
+}
+
+export interface Option {
+  text: string;
+  isCorrect: boolean;
+}
+
+export interface Question {
+  questionText: string;
+  options: Option[];
+  hint: string;
+}

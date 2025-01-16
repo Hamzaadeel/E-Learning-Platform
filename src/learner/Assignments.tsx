@@ -1,10 +1,22 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { DashboardLayout } from "../components/DashboardLayout";
 import { useAuth } from "../contexts/AuthContext";
 import { User } from "../types";
 import { Loader } from "../components/Loader";
+import AssignmentView from "./AssignmentView";
+
+interface Option {
+  text: string;
+  isCorrect: boolean;
+}
+
+interface Question {
+  questionText: string;
+  hint: string;
+  options: Option[];
+}
 
 interface Assignment {
   id: string;
@@ -14,6 +26,7 @@ interface Assignment {
   courseId: string;
   courseName: string;
   status: "pending" | "submitted" | "graded";
+  questions: Question[]; // Include questions in the assignment
 }
 
 export function Assignments() {
@@ -21,14 +34,11 @@ export function Assignments() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] =
+    useState<Assignment | null>(null);
 
-  useEffect(() => {
-    if (authUser) {
-      fetchUserDataAndAssignments();
-    }
-  }, [authUser]);
-
-  const fetchUserDataAndAssignments = async () => {
+  const fetchUserDataAndAssignments = useCallback(async () => {
     if (!authUser?.uid) return;
     try {
       // Fetch user data
@@ -61,12 +71,22 @@ export function Assignments() {
                 const assignmentsSnapshot = await getDocs(
                   collection(db, `courses/${courseId}/assignments`)
                 );
-                return assignmentsSnapshot.docs.map((doc) => ({
-                  id: doc.id,
-                  ...doc.data(),
-                  courseId,
-                  courseName: courseData.title,
-                }));
+                const courseAssignments = courseData.assignments || [];
+
+                return assignmentsSnapshot.docs
+                  .map((doc) => ({
+                    id: doc.id,
+                    ...doc.data(),
+                    courseId,
+                    courseName: courseData.title,
+                  }))
+                  .concat(
+                    courseAssignments.map((assignment: Assignment) => ({
+                      ...assignment,
+                      courseId,
+                      courseName: courseData.title,
+                    }))
+                  );
               }
               return [];
             }
@@ -81,6 +101,29 @@ export function Assignments() {
     } finally {
       setLoading(false);
     }
+  }, [authUser]);
+
+  useEffect(() => {
+    if (authUser) {
+      fetchUserDataAndAssignments();
+    }
+  }, [authUser, fetchUserDataAndAssignments]);
+
+  const openModal = (assignment: Assignment) => {
+    setSelectedAssignment(assignment);
+    setIsModalOpen(true);
+  };
+
+  const handleAssignmentSubmit = (assignmentId: string, score: number) => {
+    // Update the assignment status to submitted and store the score
+    setAssignments((prevAssignments) =>
+      prevAssignments.map((assignment) =>
+        assignment.id === assignmentId
+          ? { ...assignment, status: "submitted", score } // Update status and add score
+          : assignment
+      )
+    );
+    // Do not close the modal here; let the user close it manually
   };
 
   if (!authUser) {
@@ -128,38 +171,45 @@ export function Assignments() {
                   </div>
                   <span
                     className={`px-3 py-1 rounded-full text-sm ${
-                      assignment.status === "pending"
-                        ? "bg-yellow-100 text-yellow-800"
-                        : assignment.status === "submitted"
-                        ? "bg-blue-100 text-blue-800"
-                        : "bg-green-100 text-green-800"
+                      assignment.status
+                        ? assignment.status === "pending"
+                          ? "bg-yellow-100 text-yellow-800"
+                          : "bg-green-100 text-green-800"
+                        : "bg-gray-100 text-yellow-800"
                     }`}
                   >
-                    {assignment.status.charAt(0).toUpperCase() +
-                      assignment.status.slice(1)}
+                    {assignment.status
+                      ? assignment.status.charAt(0).toUpperCase() +
+                        assignment.status.slice(1)
+                      : "Pending"}
                   </span>
                 </div>
                 <p className="text-gray-600 mb-4">{assignment.description}</p>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-500">
-                    Due: {new Date(assignment.dueDate).toLocaleDateString()}
-                  </span>
-                  {assignment.status === "pending" && (
-                    <button
-                      className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
-                      onClick={() => {
-                        /* TODO: Implement submission handling */
-                      }}
-                    >
-                      Submit Assignment
-                    </button>
-                  )}
+                <span className="text-sm text-gray-500">
+                  Due: {assignment.dueDate ? assignment.dueDate : "No due date"}
+                </span>
+                <div className="flex justify-end">
+                  <button
+                    className="ml-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    onClick={() => openModal(assignment)} // Open modal with the selected assignment
+                  >
+                    View Assignment
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
       </div>
+
+      {isModalOpen && selectedAssignment && (
+        <AssignmentView
+          isOpen={isModalOpen}
+          assignment={selectedAssignment}
+          onClose={() => setIsModalOpen(false)} // This will close the modal when the user clicks the close button
+          onSubmit={handleAssignmentSubmit} // Pass the submit handler
+        />
+      )}
     </DashboardLayout>
   );
 }
