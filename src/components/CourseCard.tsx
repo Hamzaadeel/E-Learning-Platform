@@ -72,7 +72,11 @@ export function CourseCard({ course, onClick }: CourseCardProps) {
             </span>
           </div>
           <div className="mt-auto pt-4 flex justify-between items-center border-t border-gray-100">
-            <span className="text-lg font-bold text-gray-900">
+            <span
+              className={`text-lg font-bold ${
+                course.price === 0 ? "text-green-500" : "text-gray-900"
+              }`}
+            >
               {course.price === 0 ? "Free" : `$${course.price}`}
             </span>
             <button

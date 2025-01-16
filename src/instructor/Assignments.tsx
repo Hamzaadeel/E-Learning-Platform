@@ -61,6 +61,7 @@ export function Assignments() {
   const [assignmentToDelete, setAssignmentToDelete] = useState<string | null>(
     null
   ); // Store the ID of the assignment to delete
+  const [alertMessage, setAlertMessage] = useState<string | null>(null); // New state for alert message
 
   // Fetch courses assigned to the instructor
   const fetchCourses = useCallback(async () => {
@@ -169,6 +170,15 @@ export function Assignments() {
     setShowEditModal(false); // Hide the edit modal
   };
 
+  const handleAddAssignmentClick = () => {
+    if (!selectedCourseId) {
+      setAlertMessage("Please select a course first."); // Set alert message if no course is selected
+      setTimeout(() => setAlertMessage(null), 5000); // Clear alert message after 5 seconds
+      return;
+    }
+    setShowModal(true); // Show the modal if a course is selected
+  };
+
   return (
     <DashboardLayout
       user={{
@@ -182,6 +192,13 @@ export function Assignments() {
     >
       <div className="p-6">
         <h1 className="text-2xl font-bold mb-4">Assignments</h1>
+
+        {/* Alert Message */}
+        {alertMessage && (
+          <div className="mb-4 p-2 bg-red-100 text-red-600 border border-red-300 rounded">
+            {alertMessage}
+          </div>
+        )}
 
         <label className="block mb-2">
           Please Select a Course to view the assignments:
@@ -207,6 +224,11 @@ export function Assignments() {
             )}
           </select>
         </label>
+
+        {/* No Assignments Message */}
+        {assignments.length === 0 && (
+          <div className="mt-4">No assignments available.</div>
+        )}
 
         {loading ? (
           <Loader />
@@ -257,16 +279,15 @@ export function Assignments() {
             </table>
           </div>
         ) : (
-          <div className="mt-4">No assignments available.</div>
+          ""
         )}
-
+        {/* Add Assignment Button */}
         <button
-          onClick={() => setShowModal(true)}
+          onClick={handleAddAssignmentClick} // Updated to use the new handler
           className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
         >
           Add Assignment
         </button>
-
         {/* Success Alert */}
         {successMessage && (
           <div className="fixed top-4 right-4 mb-4 p-3 bg-green-100 text-green-700 rounded-lg shadow-md flex items-center">

@@ -149,9 +149,13 @@ export function MyCourses() {
                   </div>
                   <div className="mt-auto flex justify-between items-center">
                     <div className="flex flex-col">
-                      <span className="text-lg font-bold text-gray-900">
-                        {course.price === 0 ? "Free" : `$${course.price}`}
-                      </span>
+                    <span
+              className={`text-lg font-bold ${
+                course.price === 0 ? "text-green-500" : "text-gray-900"
+              }`}
+            >
+              {course.price === 0 ? "Free" : `$${course.price}`}
+            </span>
                       <span className="text-sm text-gray-500">
                         {course.durationValue} {course.durationType}
                       </span>

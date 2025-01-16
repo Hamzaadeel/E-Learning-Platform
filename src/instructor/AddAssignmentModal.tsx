@@ -42,6 +42,7 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
   selectedCourse,
 }) => {
   const [adding, setAdding] = useState(false);
+  const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   if (!isOpen) return null; // Don't render if not open
 
@@ -116,15 +117,54 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
     setNewAssignment({ ...newAssignment, questions: updatedQuestions });
   };
 
+  // Function to reset fields and close the modal
+  const handleCancel = () => {
+    setNewAssignment({
+      title: "",
+      questions: [],
+      hints: [],
+      dueDate: "",
+    });
+    setAlertMessage(null); // Clear any alert messages
+    onClose(); // Call the onClose function passed as a prop
+  };
+
+  const handleAddAssignment = () => {
+    if (newAssignment.title.trim() === "") {
+      setAlertMessage("Title is required.");
+      return;
+    }
+    if (newAssignment.questions.length === 0) {
+      setAlertMessage("At least one question is required.");
+      return;
+    }
+    if (
+      newAssignment.questions.some((question) => question.options.length < 2)
+    ) {
+      setAlertMessage("Each question must have at least two options.");
+      return;
+    }
+
+    setAlertMessage(null);
+    onAddAssignment(selectedCourse);
+    setAdding(true);
+  };
+
   return (
     <div
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-      onClick={onClose}
+      onClick={handleCancel}
     >
       <div
         className="bg-white rounded-lg w-full max-w-md p-6 overflow-y-auto max-h-[90vh]"
         onClick={handleModalClick}
       >
+        {alertMessage && (
+          <div className="mb-4 p-2 bg-red-100 text-red-600 border border-red-300 rounded">
+            {alertMessage}
+          </div>
+        )}
+
         <h2 className="text-2xl font-bold mb-4">Add Assignment</h2>
         <input
           type="text"
@@ -251,18 +291,14 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({
 
         <div className="flex justify-end space-x-4 mt-6">
           <button
-            onClick={onClose}
-            className="px-4 py-2 border border-gray-300 rounded-lg"
+            onClick={handleCancel}
+            className="px-4 py-2 bg-gray-300 text-black rounded-lg"
           >
             Cancel
           </button>
           <button
-            onClick={() => {
-              onAddAssignment(selectedCourse);
-              setAdding(true); // Set adding state to true when clicked
-            }}
+            onClick={handleAddAssignment}
             className="px-4 py-2 bg-indigo-600 text-white rounded-lg"
-            disabled={newAssignment.questions.length === 0} // Disable if no questions
           >
             {adding ? "Adding..." : "Add Assignment"}
           </button>
